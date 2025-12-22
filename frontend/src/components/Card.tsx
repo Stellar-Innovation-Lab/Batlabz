@@ -1,17 +1,17 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, ViewStyle, TouchableOpacity, StyleProp } from 'react-native';
 import { COLORS, SPACING, BORDER_RADIUS } from './theme';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   variant?: 'default' | 'highlight' | 'success' | 'warning' | 'error';
 }
 
 export const Card: React.FC<CardProps> = ({ children, style, onPress, variant = 'default' }) => {
-  const getCardStyle = (): ViewStyle[] => {
-    const base: ViewStyle[] = [styles.card];
+  const getCardStyle = (): StyleProp<ViewStyle>[] => {
+    const base: StyleProp<ViewStyle>[] = [styles.card];
     
     switch (variant) {
       case 'highlight':
