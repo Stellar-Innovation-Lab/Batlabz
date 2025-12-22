@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -12,8 +12,6 @@ import uuid
 from datetime import datetime, timedelta
 from enum import Enum
 import jwt
-import random
-import hashlib
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -27,19 +25,11 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ.get('JWT_SECRET', 'batlabz_secret_key_2025')
 JWT_ALGORITHM = "HS256"
 
-# Create the main app
 app = FastAPI(title="Batlabz API", description="Cricket Pay & Play Platform")
-
-# Create router with /api prefix
 api_router = APIRouter(prefix="/api")
-
 security = HTTPBearer()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # ==================== ENUMS ====================
@@ -75,6 +65,7 @@ class PaymentStatus(str, Enum):
     PAID = "paid"
     OVERDUE = "overdue"
     REFUNDED = "refunded"
+    PARTIAL = "partial"
 
 class TransactionType(str, Enum):
     TOPUP = "topup"
@@ -82,6 +73,7 @@ class TransactionType(str, Enum):
     REFUND = "refund"
     GROUND_BOOKING = "ground_booking"
     WITHDRAWAL = "withdrawal"
+    TEAM_POOL = "team_pool"
 
 class InviteStatus(str, Enum):
     PENDING = "pending"
@@ -96,6 +88,17 @@ class TurfType(str, Enum):
     NATURAL = "natural"
     ARTIFICIAL = "artificial"
     MATTING = "matting"
+
+class RideStatus(str, Enum):
+    NEED_RIDE = "need_ride"
+    OFFERING_RIDE = "offering_ride"
+    MATCHED = "matched"
+    NONE = "none"
+
+class BookingStatus(str, Enum):
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+    RESCHEDULED = "rescheduled"
 
 # ==================== MODELS ====================
 
@@ -117,6 +120,7 @@ class TokenResponse(BaseModel):
 class UserCreate(BaseModel):
     name: str
     nickname: Optional[str] = None
+    email: Optional[str] = None
     playing_role: PlayingRole = PlayingRole.ALL_ROUNDER
     preferred_locations: List[str] = []
     availability: Dict[str, bool] = {}
@@ -124,6 +128,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     nickname: Optional[str] = None
+    email: Optional[str] = None
     playing_role: Optional[PlayingRole] = None
     preferred_locations: Optional[List[str]] = None
     availability: Optional[Dict[str, bool]] = None
@@ -134,6 +139,7 @@ class User(BaseModel):
     phone: str
     name: str = ""
     nickname: Optional[str] = None
+    email: Optional[str] = None
     role: UserRole = UserRole.PLAYER
     playing_role: PlayingRole = PlayingRole.ALL_ROUNDER
     preferred_locations: List[str] = []
@@ -141,6 +147,8 @@ class User(BaseModel):
     team_ids: List[str] = []
     wallet_balance: float = 0.0
     profile_image: Optional[str] = None
+    matches_played: int = 0
+    total_spent: float = 0.0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -156,6 +164,23 @@ class TeamUpdate(BaseModel):
     home_location: Optional[str] = None
     vice_captain_id: Optional[str] = None
 
+class TeamAnnouncement(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    team_id: str
+    title: str
+    message: str
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class TeamMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    team_id: str
+    match_id: Optional[str] = None
+    user_id: str
+    user_name: str
+    message: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class Team(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
@@ -164,14 +189,9 @@ class Team(BaseModel):
     captain_id: str
     vice_captain_id: Optional[str] = None
     player_ids: List[str] = []
+    blocked_ids: List[str] = []
     invite_code: str = Field(default_factory=lambda: str(uuid.uuid4())[:8].upper())
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-class TeamInvite(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    team_id: str
-    user_id: str
-    status: InviteStatus = InviteStatus.PENDING
+    pool_balance: float = 0.0
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 # Match Models
@@ -191,6 +211,8 @@ class MatchCreate(BaseModel):
     total_cost: float = 0.0
     cost_breakdown: MatchCostBreakdown = MatchCostBreakdown()
     extras: List[str] = []
+    captain_discount: float = 0.0
+    guest_surcharge: float = 0.0
 
 class MatchUpdate(BaseModel):
     title: Optional[str] = None
@@ -210,7 +232,16 @@ class PlayerPayment(BaseModel):
     amount_due: float
     amount_paid: float = 0.0
     status: PaymentStatus = PaymentStatus.PENDING
+    is_guest: bool = False
     paid_at: Optional[datetime] = None
+
+class PlayerRide(BaseModel):
+    user_id: str
+    user_name: str
+    status: RideStatus = RideStatus.NONE
+    seats_available: int = 0
+    pickup_location: Optional[str] = None
+    matched_with: Optional[str] = None
 
 class Match(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -219,23 +250,31 @@ class Match(BaseModel):
     date: datetime
     location: str
     ground_id: Optional[str] = None
+    ground_booking_id: Optional[str] = None
     format: MatchFormat
     player_limit: int = 22
     captain_id: str
     total_cost: float = 0.0
     cost_breakdown: MatchCostBreakdown = MatchCostBreakdown()
     per_player_cost: float = 0.0
+    captain_discount: float = 0.0
+    guest_surcharge: float = 0.0
     extras: List[str] = []
     status: MatchStatus = MatchStatus.DRAFT
     invited_player_ids: List[str] = []
     confirmed_player_ids: List[str] = []
     waiting_list_ids: List[str] = []
     player_payments: List[PlayerPayment] = []
+    player_rides: List[PlayerRide] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class MatchInviteResponse(BaseModel):
-    response: str  # "accept" or "decline"
+    response: str
+
+class AddExpenseRequest(BaseModel):
+    description: str
+    amount: float
 
 # Wallet Models
 class WalletTransaction(BaseModel):
@@ -245,17 +284,22 @@ class WalletTransaction(BaseModel):
     amount: float
     balance_after: float
     description: str
-    reference_id: Optional[str] = None  # match_id, ground_booking_id, etc.
+    reference_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class TopupRequest(BaseModel):
     amount: float
-    payment_method: str = "card"  # card, bank_transfer
+    payment_method: str = "card"
 
 class PayMatchRequest(BaseModel):
     match_id: str
     use_wallet: bool = True
-    amount: Optional[float] = None  # For partial payments
+    amount: Optional[float] = None
+
+class TeamPoolRequest(BaseModel):
+    team_id: str
+    amount: float
+    action: str  # "deposit" or "withdraw"
 
 # Ground Models
 class GroundSlot(BaseModel):
@@ -266,6 +310,7 @@ class GroundSlot(BaseModel):
     price: float
     is_available: bool = True
     booked_by: Optional[str] = None
+    booking_id: Optional[str] = None
     match_id: Optional[str] = None
 
 class GroundCreate(BaseModel):
@@ -279,6 +324,20 @@ class GroundCreate(BaseModel):
     description: Optional[str] = None
     images: List[str] = []
     amenities: List[str] = []
+    cancellation_hours: int = 24
+    cancellation_fee_percent: float = 20.0
+
+class GroundUpdate(BaseModel):
+    name: Optional[str] = None
+    location: Optional[str] = None
+    type: Optional[GroundType] = None
+    turf_type: Optional[TurfType] = None
+    has_lighting: Optional[bool] = None
+    has_parking: Optional[bool] = None
+    price_per_hour: Optional[float] = None
+    description: Optional[str] = None
+    images: Optional[List[str]] = None
+    amenities: Optional[List[str]] = None
 
 class Ground(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -295,7 +354,24 @@ class Ground(BaseModel):
     amenities: List[str] = []
     rating: float = 0.0
     total_bookings: int = 0
+    total_earnings: float = 0.0
     slots: List[GroundSlot] = []
+    cancellation_hours: int = 24
+    cancellation_fee_percent: float = 20.0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class GroundBooking(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    ground_id: str
+    ground_name: str
+    slot_id: str
+    user_id: str
+    match_id: Optional[str] = None
+    date: str
+    start_time: str
+    end_time: str
+    price: float
+    status: BookingStatus = BookingStatus.CONFIRMED
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class BookSlotRequest(BaseModel):
@@ -303,28 +379,36 @@ class BookSlotRequest(BaseModel):
     slot_id: str
     match_id: Optional[str] = None
 
+class CancelBookingRequest(BaseModel):
+    booking_id: str
+    reason: Optional[str] = None
+
+# Ride Models
+class RideUpdate(BaseModel):
+    match_id: str
+    status: RideStatus
+    seats_available: Optional[int] = 0
+    pickup_location: Optional[str] = None
+
 # Notification Models
 class Notification(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
     title: str
     message: str
-    type: str  # match_invite, payment_due, match_reminder, etc.
+    type: str
     reference_id: Optional[str] = None
     is_read: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-# OTP Storage (in-memory for MVP)
+# OTP Storage
 otp_storage: Dict[str, str] = {}
 
 # ==================== HELPERS ====================
 
 def create_token(user_id: str) -> str:
     expiry = datetime.utcnow() + timedelta(days=30)
-    payload = {
-        "user_id": user_id,
-        "exp": expiry
-    }
+    payload = {"user_id": user_id, "exp": expiry}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
@@ -334,11 +418,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         user_id = payload.get("user_id")
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
-        
         user_data = await db.users.find_one({"id": user_id})
         if not user_data:
             raise HTTPException(status_code=401, detail="User not found")
-        
         return User(**user_data)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -346,95 +428,74 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Invalid token")
 
 async def create_notification(user_id: str, title: str, message: str, notif_type: str, reference_id: str = None):
-    notification = Notification(
-        user_id=user_id,
-        title=title,
-        message=message,
-        type=notif_type,
-        reference_id=reference_id
-    )
+    notification = Notification(user_id=user_id, title=title, message=message, type=notif_type, reference_id=reference_id)
     await db.notifications.insert_one(notification.dict())
     return notification
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+async def require_ground_owner(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in [UserRole.GROUND_OWNER, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Ground owner access required")
+    return current_user
 
 # ==================== AUTH ROUTES ====================
 
 @api_router.post("/auth/request-otp")
 async def request_otp(request: OTPRequest):
-    """Request OTP for phone login (Mock - always returns 123456)"""
     phone = request.phone.strip()
-    # Generate mock OTP (always 123456 for MVP)
-    otp = "123456"
+    otp = "123456"  # Mock OTP
     otp_storage[phone] = otp
     logger.info(f"OTP for {phone}: {otp}")
-    return {"message": "OTP sent successfully", "otp": otp}  # Return OTP for testing
+    return {"message": "OTP sent successfully", "otp": otp}
 
 @api_router.post("/auth/verify-otp", response_model=TokenResponse)
 async def verify_otp(request: OTPVerify):
-    """Verify OTP and return JWT token"""
     phone = request.phone.strip()
     otp = request.otp.strip()
-    
-    # For MVP, accept 123456 as valid OTP
     stored_otp = otp_storage.get(phone, "123456")
     if otp != stored_otp and otp != "123456":
         raise HTTPException(status_code=400, detail="Invalid OTP")
     
-    # Check if user exists
     user_data = await db.users.find_one({"phone": phone})
     is_new_user = False
     
     if not user_data:
-        # Create new user
         user = User(phone=phone)
         await db.users.insert_one(user.dict())
         user_data = user.dict()
         is_new_user = True
     
     token = create_token(user_data["id"])
-    return TokenResponse(
-        access_token=token,
-        user_id=user_data["id"],
-        is_new_user=is_new_user
-    )
+    return TokenResponse(access_token=token, user_id=user_data["id"], is_new_user=is_new_user)
 
 # ==================== USER ROUTES ====================
 
-@api_router.get("/users/me", response_model=User)
+@api_router.get("/users/me")
 async def get_me(current_user: User = Depends(get_current_user)):
-    """Get current user profile"""
     return current_user
 
-@api_router.put("/users/me", response_model=User)
+@api_router.put("/users/me")
 async def update_me(update: UserUpdate, current_user: User = Depends(get_current_user)):
-    """Update current user profile"""
     update_data = {k: v for k, v in update.dict().items() if v is not None}
     update_data["updated_at"] = datetime.utcnow()
-    
-    await db.users.update_one(
-        {"id": current_user.id},
-        {"$set": update_data}
-    )
-    
+    await db.users.update_one({"id": current_user.id}, {"$set": update_data})
     user_data = await db.users.find_one({"id": current_user.id})
     return User(**user_data)
 
-@api_router.post("/users/complete-profile", response_model=User)
+@api_router.post("/users/complete-profile")
 async def complete_profile(profile: UserCreate, current_user: User = Depends(get_current_user)):
-    """Complete user profile after signup"""
     update_data = profile.dict()
     update_data["updated_at"] = datetime.utcnow()
-    
-    await db.users.update_one(
-        {"id": current_user.id},
-        {"$set": update_data}
-    )
-    
+    await db.users.update_one({"id": current_user.id}, {"$set": update_data})
     user_data = await db.users.find_one({"id": current_user.id})
     return User(**user_data)
 
-@api_router.get("/users/{user_id}", response_model=User)
+@api_router.get("/users/{user_id}")
 async def get_user(user_id: str, current_user: User = Depends(get_current_user)):
-    """Get user by ID"""
     user_data = await db.users.find_one({"id": user_id})
     if not user_data:
         raise HTTPException(status_code=404, detail="User not found")
@@ -442,7 +503,6 @@ async def get_user(user_id: str, current_user: User = Depends(get_current_user))
 
 @api_router.get("/users/search/{query}")
 async def search_users(query: str, current_user: User = Depends(get_current_user)):
-    """Search users by name or phone"""
     users = await db.users.find({
         "$or": [
             {"name": {"$regex": query, "$options": "i"}},
@@ -451,109 +511,82 @@ async def search_users(query: str, current_user: User = Depends(get_current_user
     }).to_list(20)
     return [User(**u) for u in users]
 
+@api_router.get("/users/me/match-history")
+async def get_match_history(current_user: User = Depends(get_current_user)):
+    matches = await db.matches.find({
+        "$or": [
+            {"confirmed_player_ids": current_user.id},
+            {"captain_id": current_user.id}
+        ],
+        "status": MatchStatus.COMPLETED
+    }).sort("date", -1).to_list(50)
+    return [Match(**m) for m in matches]
+
+@api_router.get("/users/me/payment-history")
+async def get_payment_history(current_user: User = Depends(get_current_user)):
+    transactions = await db.wallet_transactions.find({"user_id": current_user.id}).sort("created_at", -1).to_list(100)
+    return [WalletTransaction(**t) for t in transactions]
+
 # ==================== TEAM ROUTES ====================
 
-@api_router.post("/teams", response_model=Team)
+@api_router.post("/teams")
 async def create_team(team_data: TeamCreate, current_user: User = Depends(get_current_user)):
-    """Create a new team"""
-    team = Team(
-        **team_data.dict(),
-        captain_id=current_user.id,
-        player_ids=[current_user.id]
-    )
+    team = Team(**team_data.dict(), captain_id=current_user.id, player_ids=[current_user.id])
     await db.teams.insert_one(team.dict())
-    
-    # Update user role to captain and add team
-    await db.users.update_one(
-        {"id": current_user.id},
-        {
-            "$set": {"role": UserRole.CAPTAIN},
-            "$push": {"team_ids": team.id}
-        }
-    )
-    
+    await db.users.update_one({"id": current_user.id}, {"$set": {"role": UserRole.CAPTAIN}, "$push": {"team_ids": team.id}})
     return team
 
-@api_router.get("/teams", response_model=List[Team])
+@api_router.get("/teams")
 async def get_my_teams(current_user: User = Depends(get_current_user)):
-    """Get all teams user belongs to"""
     teams = await db.teams.find({
-        "$or": [
-            {"player_ids": current_user.id},
-            {"captain_id": current_user.id}
-        ]
+        "$or": [{"player_ids": current_user.id}, {"captain_id": current_user.id}]
     }).to_list(100)
     return [Team(**t) for t in teams]
 
-@api_router.get("/teams/{team_id}", response_model=Team)
+@api_router.get("/teams/{team_id}")
 async def get_team(team_id: str, current_user: User = Depends(get_current_user)):
-    """Get team by ID"""
     team_data = await db.teams.find_one({"id": team_id})
     if not team_data:
         raise HTTPException(status_code=404, detail="Team not found")
     return Team(**team_data)
 
-@api_router.put("/teams/{team_id}", response_model=Team)
+@api_router.put("/teams/{team_id}")
 async def update_team(team_id: str, update: TeamUpdate, current_user: User = Depends(get_current_user)):
-    """Update team (captain only)"""
     team_data = await db.teams.find_one({"id": team_id})
     if not team_data:
         raise HTTPException(status_code=404, detail="Team not found")
     if team_data["captain_id"] != current_user.id:
         raise HTTPException(status_code=403, detail="Only captain can update team")
-    
     update_data = {k: v for k, v in update.dict().items() if v is not None}
     await db.teams.update_one({"id": team_id}, {"$set": update_data})
-    
     team_data = await db.teams.find_one({"id": team_id})
     return Team(**team_data)
 
 @api_router.post("/teams/join/{invite_code}")
 async def join_team_by_code(invite_code: str, current_user: User = Depends(get_current_user)):
-    """Join team using invite code"""
     team_data = await db.teams.find_one({"invite_code": invite_code.upper()})
     if not team_data:
         raise HTTPException(status_code=404, detail="Invalid invite code")
-    
     if current_user.id in team_data.get("player_ids", []):
-        raise HTTPException(status_code=400, detail="Already a member of this team")
+        raise HTTPException(status_code=400, detail="Already a member")
+    if current_user.id in team_data.get("blocked_ids", []):
+        raise HTTPException(status_code=403, detail="You have been blocked from this team")
     
-    # Add player to team
-    await db.teams.update_one(
-        {"id": team_data["id"]},
-        {"$push": {"player_ids": current_user.id}}
-    )
-    
-    # Add team to user
-    await db.users.update_one(
-        {"id": current_user.id},
-        {"$push": {"team_ids": team_data["id"]}}
-    )
-    
-    # Notify captain
-    await create_notification(
-        team_data["captain_id"],
-        "New Team Member",
-        f"{current_user.name or 'A player'} has joined your team {team_data['name']}",
-        "team_join",
-        team_data["id"]
-    )
-    
+    await db.teams.update_one({"id": team_data["id"]}, {"$push": {"player_ids": current_user.id}})
+    await db.users.update_one({"id": current_user.id}, {"$push": {"team_ids": team_data["id"]}})
+    await create_notification(team_data["captain_id"], "New Team Member", f"{current_user.name or 'A player'} joined {team_data['name']}", "team_join", team_data["id"])
     return {"message": "Successfully joined team", "team_id": team_data["id"]}
 
 @api_router.get("/teams/{team_id}/players")
 async def get_team_players(team_id: str, current_user: User = Depends(get_current_user)):
-    """Get all players in a team"""
     team_data = await db.teams.find_one({"id": team_id})
     if not team_data:
         raise HTTPException(status_code=404, detail="Team not found")
-    
     players = await db.users.find({"id": {"$in": team_data.get("player_ids", [])}}).to_list(100)
     return [User(**p) for p in players]
 
 @api_router.delete("/teams/{team_id}/players/{player_id}")
 async def remove_player(team_id: str, player_id: str, current_user: User = Depends(get_current_user)):
-    """Remove player from team (captain only)"""
     team_data = await db.teams.find_one({"id": team_id})
     if not team_data:
         raise HTTPException(status_code=404, detail="Team not found")
@@ -562,41 +595,119 @@ async def remove_player(team_id: str, player_id: str, current_user: User = Depen
     if player_id == team_data["captain_id"]:
         raise HTTPException(status_code=400, detail="Captain cannot be removed")
     
-    await db.teams.update_one(
-        {"id": team_id},
-        {"$pull": {"player_ids": player_id}}
-    )
-    await db.users.update_one(
-        {"id": player_id},
-        {"$pull": {"team_ids": team_id}}
-    )
+    await db.teams.update_one({"id": team_id}, {"$pull": {"player_ids": player_id}})
+    await db.users.update_one({"id": player_id}, {"$pull": {"team_ids": team_id}})
+    await create_notification(player_id, "Removed from Team", f"You have been removed from {team_data['name']}", "team_removed", team_id)
+    return {"message": "Player removed"}
+
+@api_router.post("/teams/{team_id}/block/{player_id}")
+async def block_player(team_id: str, player_id: str, current_user: User = Depends(get_current_user)):
+    team_data = await db.teams.find_one({"id": team_id})
+    if not team_data:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team_data["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can block players")
     
-    return {"message": "Player removed successfully"}
+    await db.teams.update_one({"id": team_id}, {"$pull": {"player_ids": player_id}, "$addToSet": {"blocked_ids": player_id}})
+    await db.users.update_one({"id": player_id}, {"$pull": {"team_ids": team_id}})
+    return {"message": "Player blocked"}
+
+@api_router.post("/teams/{team_id}/announcements")
+async def create_announcement(team_id: str, title: str, message: str, current_user: User = Depends(get_current_user)):
+    team_data = await db.teams.find_one({"id": team_id})
+    if not team_data:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team_data["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can create announcements")
+    
+    announcement = TeamAnnouncement(team_id=team_id, title=title, message=message, created_by=current_user.id)
+    await db.team_announcements.insert_one(announcement.dict())
+    
+    for player_id in team_data.get("player_ids", []):
+        if player_id != current_user.id:
+            await create_notification(player_id, f"Team Announcement: {title}", message, "team_announcement", team_id)
+    
+    return announcement
+
+@api_router.get("/teams/{team_id}/announcements")
+async def get_announcements(team_id: str, current_user: User = Depends(get_current_user)):
+    announcements = await db.team_announcements.find({"team_id": team_id}).sort("created_at", -1).to_list(50)
+    return [TeamAnnouncement(**a) for a in announcements]
+
+@api_router.post("/teams/{team_id}/messages")
+async def send_message(team_id: str, message: str, match_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    team_data = await db.teams.find_one({"id": team_id})
+    if not team_data:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if current_user.id not in team_data.get("player_ids", []):
+        raise HTTPException(status_code=403, detail="Not a team member")
+    
+    msg = TeamMessage(team_id=team_id, match_id=match_id, user_id=current_user.id, user_name=current_user.name or "Player", message=message)
+    await db.team_messages.insert_one(msg.dict())
+    return msg
+
+@api_router.get("/teams/{team_id}/messages")
+async def get_messages(team_id: str, match_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    query = {"team_id": team_id}
+    if match_id:
+        query["match_id"] = match_id
+    messages = await db.team_messages.find(query).sort("created_at", -1).to_list(100)
+    return [TeamMessage(**m) for m in messages]
+
+@api_router.post("/teams/{team_id}/pool")
+async def manage_team_pool(team_id: str, request: TeamPoolRequest, current_user: User = Depends(get_current_user)):
+    team_data = await db.teams.find_one({"id": team_id})
+    if not team_data:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team_data["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can manage pool")
+    
+    current_pool = team_data.get("pool_balance", 0)
+    
+    if request.action == "deposit":
+        if current_user.wallet_balance < request.amount:
+            raise HTTPException(status_code=400, detail="Insufficient wallet balance")
+        new_pool = current_pool + request.amount
+        new_wallet = current_user.wallet_balance - request.amount
+        
+        await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_wallet}})
+        await db.teams.update_one({"id": team_id}, {"$set": {"pool_balance": new_pool}})
+        
+        transaction = WalletTransaction(user_id=current_user.id, type=TransactionType.TEAM_POOL, amount=-request.amount, balance_after=new_wallet, description=f"Team pool deposit: {team_data['name']}", reference_id=team_id)
+        await db.wallet_transactions.insert_one(transaction.dict())
+        
+        return {"message": "Deposited to team pool", "new_pool_balance": new_pool}
+    
+    elif request.action == "withdraw":
+        if current_pool < request.amount:
+            raise HTTPException(status_code=400, detail="Insufficient pool balance")
+        new_pool = current_pool - request.amount
+        new_wallet = current_user.wallet_balance + request.amount
+        
+        await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_wallet}})
+        await db.teams.update_one({"id": team_id}, {"$set": {"pool_balance": new_pool}})
+        
+        transaction = WalletTransaction(user_id=current_user.id, type=TransactionType.TEAM_POOL, amount=request.amount, balance_after=new_wallet, description=f"Team pool withdrawal: {team_data['name']}", reference_id=team_id)
+        await db.wallet_transactions.insert_one(transaction.dict())
+        
+        return {"message": "Withdrawn from team pool", "new_pool_balance": new_pool}
 
 # ==================== MATCH ROUTES ====================
 
-@api_router.post("/matches", response_model=Match)
+@api_router.post("/matches")
 async def create_match(match_data: MatchCreate, team_id: str, current_user: User = Depends(get_current_user)):
-    """Create a new match (captain only)"""
     team_data = await db.teams.find_one({"id": team_id})
     if not team_data:
         raise HTTPException(status_code=404, detail="Team not found")
     if team_data["captain_id"] != current_user.id:
         raise HTTPException(status_code=403, detail="Only captain can create matches")
     
-    match = Match(
-        **match_data.dict(),
-        team_id=team_id,
-        captain_id=current_user.id
-    )
+    match = Match(**match_data.dict(), team_id=team_id, captain_id=current_user.id, captain_discount=match_data.captain_discount, guest_surcharge=match_data.guest_surcharge)
     await db.matches.insert_one(match.dict())
-    
     return match
 
 @api_router.get("/matches")
 async def get_my_matches(current_user: User = Depends(get_current_user)):
-    """Get all matches for current user"""
-    # Get matches where user is invited or confirmed
     matches = await db.matches.find({
         "$or": [
             {"captain_id": current_user.id},
@@ -608,21 +719,18 @@ async def get_my_matches(current_user: User = Depends(get_current_user)):
 
 @api_router.get("/matches/team/{team_id}")
 async def get_team_matches(team_id: str, current_user: User = Depends(get_current_user)):
-    """Get all matches for a team"""
     matches = await db.matches.find({"team_id": team_id}).sort("date", -1).to_list(100)
     return [Match(**m) for m in matches]
 
-@api_router.get("/matches/{match_id}", response_model=Match)
+@api_router.get("/matches/{match_id}")
 async def get_match(match_id: str, current_user: User = Depends(get_current_user)):
-    """Get match by ID"""
     match_data = await db.matches.find_one({"id": match_id})
     if not match_data:
         raise HTTPException(status_code=404, detail="Match not found")
     return Match(**match_data)
 
-@api_router.put("/matches/{match_id}", response_model=Match)
+@api_router.put("/matches/{match_id}")
 async def update_match(match_id: str, update: MatchUpdate, current_user: User = Depends(get_current_user)):
-    """Update match (captain only)"""
     match_data = await db.matches.find_one({"id": match_id})
     if not match_data:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -630,106 +738,64 @@ async def update_match(match_id: str, update: MatchUpdate, current_user: User = 
         raise HTTPException(status_code=403, detail="Only captain can update match")
     
     update_data = {k: v for k, v in update.dict().items() if v is not None}
-    if "cost_breakdown" in update_data:
-        update_data["cost_breakdown"] = update_data["cost_breakdown"].dict() if hasattr(update_data["cost_breakdown"], 'dict') else update_data["cost_breakdown"]
+    if "cost_breakdown" in update_data and hasattr(update_data["cost_breakdown"], 'dict'):
+        update_data["cost_breakdown"] = update_data["cost_breakdown"].dict()
     update_data["updated_at"] = datetime.utcnow()
     
     await db.matches.update_one({"id": match_id}, {"$set": update_data})
-    
     match_data = await db.matches.find_one({"id": match_id})
     return Match(**match_data)
 
 @api_router.post("/matches/{match_id}/invite")
 async def invite_players(match_id: str, player_ids: List[str], current_user: User = Depends(get_current_user)):
-    """Invite players to match (captain only)"""
     match_data = await db.matches.find_one({"id": match_id})
     if not match_data:
         raise HTTPException(status_code=404, detail="Match not found")
     if match_data["captain_id"] != current_user.id:
-        raise HTTPException(status_code=403, detail="Only captain can invite players")
+        raise HTTPException(status_code=403, detail="Only captain can invite")
     
-    # Add players to invited list
-    await db.matches.update_one(
-        {"id": match_id},
-        {
-            "$addToSet": {"invited_player_ids": {"$each": player_ids}},
-            "$set": {"status": MatchStatus.PLAYERS_INVITED, "updated_at": datetime.utcnow()}
-        }
-    )
+    await db.matches.update_one({"id": match_id}, {
+        "$addToSet": {"invited_player_ids": {"$each": player_ids}},
+        "$set": {"status": MatchStatus.PLAYERS_INVITED, "updated_at": datetime.utcnow()}
+    })
     
-    # Send notifications
     for player_id in player_ids:
-        await create_notification(
-            player_id,
-            "Match Invitation",
-            f"You've been invited to {match_data['title']}",
-            "match_invite",
-            match_id
-        )
+        await create_notification(player_id, "Match Invitation", f"You've been invited to {match_data['title']}", "match_invite", match_id)
     
     return {"message": f"Invited {len(player_ids)} players"}
 
 @api_router.post("/matches/{match_id}/respond")
 async def respond_to_invite(match_id: str, response: MatchInviteResponse, current_user: User = Depends(get_current_user)):
-    """Respond to match invitation"""
     match_data = await db.matches.find_one({"id": match_id})
     if not match_data:
         raise HTTPException(status_code=404, detail="Match not found")
     
-    if current_user.id not in match_data.get("invited_player_ids", []):
-        raise HTTPException(status_code=400, detail="You were not invited to this match")
-    
     if response.response == "accept":
         confirmed = match_data.get("confirmed_player_ids", [])
         if len(confirmed) >= match_data["player_limit"]:
-            # Add to waiting list
-            await db.matches.update_one(
-                {"id": match_id},
-                {"$addToSet": {"waiting_list_ids": current_user.id}}
-            )
+            await db.matches.update_one({"id": match_id}, {"$addToSet": {"waiting_list_ids": current_user.id}})
             return {"message": "Added to waiting list - match is full"}
         
-        # Calculate per player cost
         match_obj = Match(**match_data)
         per_player = match_obj.total_cost / match_obj.player_limit if match_obj.player_limit > 0 else 0
         
-        # Create payment record
-        payment = PlayerPayment(
-            user_id=current_user.id,
-            user_name=current_user.name or "Player",
-            amount_due=per_player,
-            status=PaymentStatus.PENDING
-        )
+        payment = PlayerPayment(user_id=current_user.id, user_name=current_user.name or "Player", amount_due=per_player, status=PaymentStatus.PENDING)
+        ride = PlayerRide(user_id=current_user.id, user_name=current_user.name or "Player")
         
-        await db.matches.update_one(
-            {"id": match_id},
-            {
-                "$addToSet": {"confirmed_player_ids": current_user.id},
-                "$push": {"player_payments": payment.dict()},
-                "$set": {"per_player_cost": per_player, "updated_at": datetime.utcnow()}
-            }
-        )
+        await db.matches.update_one({"id": match_id}, {
+            "$addToSet": {"confirmed_player_ids": current_user.id},
+            "$push": {"player_payments": payment.dict(), "player_rides": ride.dict()},
+            "$set": {"per_player_cost": per_player, "updated_at": datetime.utcnow()}
+        })
         
-        # Notify captain
-        await create_notification(
-            match_data["captain_id"],
-            "Player Confirmed",
-            f"{current_user.name or 'A player'} confirmed for {match_data['title']}",
-            "player_confirmed",
-            match_id
-        )
-        
-        return {"message": "Successfully confirmed for match", "amount_due": per_player}
+        await create_notification(match_data["captain_id"], "Player Confirmed", f"{current_user.name or 'A player'} confirmed for {match_data['title']}", "player_confirmed", match_id)
+        return {"message": "Confirmed for match", "amount_due": per_player}
     else:
-        await db.matches.update_one(
-            {"id": match_id},
-            {"$pull": {"invited_player_ids": current_user.id}}
-        )
+        await db.matches.update_one({"id": match_id}, {"$pull": {"invited_player_ids": current_user.id}})
         return {"message": "Invitation declined"}
 
 @api_router.post("/matches/{match_id}/calculate-fees")
 async def calculate_fees(match_id: str, current_user: User = Depends(get_current_user)):
-    """Recalculate fees for all confirmed players"""
     match_data = await db.matches.find_one({"id": match_id})
     if not match_data:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -741,85 +807,176 @@ async def calculate_fees(match_id: str, current_user: User = Depends(get_current
         raise HTTPException(status_code=400, detail="No confirmed players")
     
     per_player = match_data["total_cost"] / confirmed_count
+    captain_discount = match_data.get("captain_discount", 0)
+    guest_surcharge = match_data.get("guest_surcharge", 0)
     
-    # Update all payment records
     updated_payments = []
     for payment in match_data.get("player_payments", []):
-        payment["amount_due"] = per_player
+        amount = per_player
+        if payment["user_id"] == match_data["captain_id"] and captain_discount > 0:
+            amount = per_player - captain_discount
+        if payment.get("is_guest", False) and guest_surcharge > 0:
+            amount = per_player + guest_surcharge
+        
+        payment["amount_due"] = amount
+        if payment["amount_paid"] >= amount:
+            payment["status"] = PaymentStatus.PAID
+        elif payment["amount_paid"] > 0:
+            payment["status"] = PaymentStatus.PARTIAL
         updated_payments.append(payment)
     
-    await db.matches.update_one(
-        {"id": match_id},
-        {"$set": {
-            "per_player_cost": per_player,
-            "player_payments": updated_payments,
-            "status": MatchStatus.PAYMENTS_PENDING,
-            "updated_at": datetime.utcnow()
-        }}
-    )
+    await db.matches.update_one({"id": match_id}, {"$set": {
+        "per_player_cost": per_player,
+        "player_payments": updated_payments,
+        "status": MatchStatus.PAYMENTS_PENDING,
+        "updated_at": datetime.utcnow()
+    }})
     
-    # Notify all players
     for player_id in match_data.get("confirmed_player_ids", []):
-        await create_notification(
-            player_id,
-            "Payment Due",
-            f"Payment of AED {per_player:.2f} due for {match_data['title']}",
-            "payment_due",
-            match_id
-        )
+        await create_notification(player_id, "Payment Due", f"Payment of AED {per_player:.2f} due for {match_data['title']}", "payment_due", match_id)
     
     return {"per_player_cost": per_player, "total_players": confirmed_count}
+
+@api_router.post("/matches/{match_id}/add-expense")
+async def add_expense(match_id: str, expense: AddExpenseRequest, current_user: User = Depends(get_current_user)):
+    match_data = await db.matches.find_one({"id": match_id})
+    if not match_data:
+        raise HTTPException(status_code=404, detail="Match not found")
+    if match_data["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can add expenses")
+    
+    new_total = match_data["total_cost"] + expense.amount
+    cost_breakdown = match_data.get("cost_breakdown", {})
+    cost_breakdown["miscellaneous"] = cost_breakdown.get("miscellaneous", 0) + expense.amount
+    
+    await db.matches.update_one({"id": match_id}, {"$set": {
+        "total_cost": new_total,
+        "cost_breakdown": cost_breakdown,
+        "updated_at": datetime.utcnow()
+    }, "$push": {"extras": expense.description}})
+    
+    return {"message": "Expense added", "new_total": new_total}
+
+@api_router.post("/matches/{match_id}/complete")
+async def complete_match(match_id: str, current_user: User = Depends(get_current_user)):
+    match_data = await db.matches.find_one({"id": match_id})
+    if not match_data:
+        raise HTTPException(status_code=404, detail="Match not found")
+    if match_data["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can complete match")
+    
+    await db.matches.update_one({"id": match_id}, {"$set": {"status": MatchStatus.COMPLETED, "updated_at": datetime.utcnow()}})
+    
+    for player_id in match_data.get("confirmed_player_ids", []):
+        await db.users.update_one({"id": player_id}, {"$inc": {"matches_played": 1}})
+    
+    return {"message": "Match completed"}
+
+@api_router.post("/matches/{match_id}/cancel")
+async def cancel_match(match_id: str, current_user: User = Depends(get_current_user)):
+    match_data = await db.matches.find_one({"id": match_id})
+    if not match_data:
+        raise HTTPException(status_code=404, detail="Match not found")
+    if match_data["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can cancel match")
+    
+    # Refund all payments
+    for payment in match_data.get("player_payments", []):
+        if payment["amount_paid"] > 0:
+            user_data = await db.users.find_one({"id": payment["user_id"]})
+            if user_data:
+                new_balance = user_data["wallet_balance"] + payment["amount_paid"]
+                await db.users.update_one({"id": payment["user_id"]}, {"$set": {"wallet_balance": new_balance}})
+                
+                transaction = WalletTransaction(user_id=payment["user_id"], type=TransactionType.REFUND, amount=payment["amount_paid"], balance_after=new_balance, description=f"Refund for cancelled match: {match_data['title']}", reference_id=match_id)
+                await db.wallet_transactions.insert_one(transaction.dict())
+                
+                await create_notification(payment["user_id"], "Match Cancelled", f"{match_data['title']} has been cancelled. AED {payment['amount_paid']:.2f} refunded.", "match_cancelled", match_id)
+    
+    await db.matches.update_one({"id": match_id}, {"$set": {"status": MatchStatus.CANCELLED, "updated_at": datetime.utcnow()}})
+    return {"message": "Match cancelled and refunds processed"}
+
+@api_router.post("/matches/{match_id}/ride")
+async def update_ride_status(match_id: str, ride: RideUpdate, current_user: User = Depends(get_current_user)):
+    match_data = await db.matches.find_one({"id": match_id})
+    if not match_data:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    player_rides = match_data.get("player_rides", [])
+    for i, r in enumerate(player_rides):
+        if r["user_id"] == current_user.id:
+            player_rides[i]["status"] = ride.status
+            player_rides[i]["seats_available"] = ride.seats_available or 0
+            player_rides[i]["pickup_location"] = ride.pickup_location
+            break
+    
+    await db.matches.update_one({"id": match_id}, {"$set": {"player_rides": player_rides}})
+    return {"message": "Ride status updated"}
+
+@api_router.get("/matches/{match_id}/rides")
+async def get_ride_status(match_id: str, current_user: User = Depends(get_current_user)):
+    match_data = await db.matches.find_one({"id": match_id})
+    if not match_data:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    need_ride = [r for r in match_data.get("player_rides", []) if r["status"] == RideStatus.NEED_RIDE]
+    offering_ride = [r for r in match_data.get("player_rides", []) if r["status"] == RideStatus.OFFERING_RIDE]
+    
+    return {"need_ride": need_ride, "offering_ride": offering_ride}
+
+@api_router.get("/matches/{match_id}/summary")
+async def get_match_summary(match_id: str, current_user: User = Depends(get_current_user)):
+    match_data = await db.matches.find_one({"id": match_id})
+    if not match_data:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    total_collected = sum(p["amount_paid"] for p in match_data.get("player_payments", []))
+    total_due = sum(p["amount_due"] for p in match_data.get("player_payments", []))
+    outstanding = total_due - total_collected
+    
+    paid_count = len([p for p in match_data.get("player_payments", []) if p["status"] == PaymentStatus.PAID])
+    pending_count = len([p for p in match_data.get("player_payments", []) if p["status"] in [PaymentStatus.PENDING, PaymentStatus.PARTIAL]])
+    
+    return {
+        "match": Match(**match_data),
+        "total_collected": total_collected,
+        "total_due": total_due,
+        "outstanding": outstanding,
+        "paid_count": paid_count,
+        "pending_count": pending_count,
+        "confirmed_count": len(match_data.get("confirmed_player_ids", [])),
+        "waiting_count": len(match_data.get("waiting_list_ids", []))
+    }
 
 # ==================== WALLET ROUTES ====================
 
 @api_router.get("/wallet/balance")
 async def get_wallet_balance(current_user: User = Depends(get_current_user)):
-    """Get current wallet balance"""
     return {"balance": current_user.wallet_balance}
 
 @api_router.get("/wallet/transactions")
 async def get_wallet_transactions(current_user: User = Depends(get_current_user)):
-    """Get wallet transaction history"""
-    transactions = await db.wallet_transactions.find(
-        {"user_id": current_user.id}
-    ).sort("created_at", -1).to_list(100)
+    transactions = await db.wallet_transactions.find({"user_id": current_user.id}).sort("created_at", -1).to_list(100)
     return [WalletTransaction(**t) for t in transactions]
 
 @api_router.post("/wallet/topup")
 async def topup_wallet(request: TopupRequest, current_user: User = Depends(get_current_user)):
-    """Top up wallet (Mock payment for MVP)"""
     if request.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
     
-    # Mock payment success
     new_balance = current_user.wallet_balance + request.amount
-    
-    # Create transaction record
-    transaction = WalletTransaction(
-        user_id=current_user.id,
-        type=TransactionType.TOPUP,
-        amount=request.amount,
-        balance_after=new_balance,
-        description=f"Wallet top-up via {request.payment_method}"
-    )
+    transaction = WalletTransaction(user_id=current_user.id, type=TransactionType.TOPUP, amount=request.amount, balance_after=new_balance, description=f"Wallet top-up via {request.payment_method}")
     await db.wallet_transactions.insert_one(transaction.dict())
-    
-    # Update user balance
-    await db.users.update_one(
-        {"id": current_user.id},
-        {"$set": {"wallet_balance": new_balance}}
-    )
+    await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_balance}, "$inc": {"total_spent": 0}})
     
     return {"message": "Top-up successful", "new_balance": new_balance, "transaction_id": transaction.id}
 
 @api_router.post("/wallet/pay-match")
 async def pay_for_match(request: PayMatchRequest, current_user: User = Depends(get_current_user)):
-    """Pay for match from wallet"""
     match_data = await db.matches.find_one({"id": request.match_id})
     if not match_data:
         raise HTTPException(status_code=404, detail="Match not found")
     
-    # Find player's payment record
     player_payment = None
     payment_index = -1
     for i, p in enumerate(match_data.get("player_payments", [])):
@@ -829,7 +986,7 @@ async def pay_for_match(request: PayMatchRequest, current_user: User = Depends(g
             break
     
     if not player_payment:
-        raise HTTPException(status_code=400, detail="No payment record found for you")
+        raise HTTPException(status_code=400, detail="No payment record found")
     
     amount_remaining = player_payment["amount_due"] - player_payment.get("amount_paid", 0)
     payment_amount = request.amount if request.amount else amount_remaining
@@ -842,30 +999,15 @@ async def pay_for_match(request: PayMatchRequest, current_user: User = Depends(g
             raise HTTPException(status_code=400, detail="Insufficient wallet balance")
         
         new_balance = current_user.wallet_balance - payment_amount
-        
-        # Create transaction
-        transaction = WalletTransaction(
-            user_id=current_user.id,
-            type=TransactionType.MATCH_PAYMENT,
-            amount=-payment_amount,
-            balance_after=new_balance,
-            description=f"Payment for match: {match_data['title']}",
-            reference_id=request.match_id
-        )
+        transaction = WalletTransaction(user_id=current_user.id, type=TransactionType.MATCH_PAYMENT, amount=-payment_amount, balance_after=new_balance, description=f"Payment for match: {match_data['title']}", reference_id=request.match_id)
         await db.wallet_transactions.insert_one(transaction.dict())
-        
-        # Update user balance
-        await db.users.update_one(
-            {"id": current_user.id},
-            {"$set": {"wallet_balance": new_balance}}
-        )
+        await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_balance}, "$inc": {"total_spent": payment_amount}})
     
-    # Update payment record
     new_paid = player_payment.get("amount_paid", 0) + payment_amount
-    new_status = PaymentStatus.PAID if new_paid >= player_payment["amount_due"] else PaymentStatus.PENDING
+    new_status = PaymentStatus.PAID if new_paid >= player_payment["amount_due"] else PaymentStatus.PARTIAL
     
     await db.matches.update_one(
-        {"id": request.match_id, f"player_payments.{payment_index}.user_id": current_user.id},
+        {"id": request.match_id},
         {"$set": {
             f"player_payments.{payment_index}.amount_paid": new_paid,
             f"player_payments.{payment_index}.status": new_status,
@@ -873,95 +1015,132 @@ async def pay_for_match(request: PayMatchRequest, current_user: User = Depends(g
         }}
     )
     
-    # Notify captain if fully paid
     if new_status == PaymentStatus.PAID:
-        await create_notification(
-            match_data["captain_id"],
-            "Payment Received",
-            f"{current_user.name or 'A player'} has paid for {match_data['title']}",
-            "payment_received",
-            request.match_id
-        )
+        await create_notification(match_data["captain_id"], "Payment Received", f"{current_user.name or 'A player'} paid for {match_data['title']}", "payment_received", request.match_id)
+    
+    # Check if all paid
+    match_data = await db.matches.find_one({"id": request.match_id})
+    all_paid = all(p["status"] == PaymentStatus.PAID for p in match_data.get("player_payments", []))
+    if all_paid and match_data.get("player_payments"):
+        await db.matches.update_one({"id": request.match_id}, {"$set": {"status": MatchStatus.READY_TO_PLAY}})
+    
+    return {"message": "Payment successful", "amount_paid": payment_amount, "total_paid": new_paid, "amount_remaining": player_payment["amount_due"] - new_paid, "status": new_status}
+
+@api_router.get("/wallet/export")
+async def export_transactions(start_date: Optional[str] = None, end_date: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    query = {"user_id": current_user.id}
+    if start_date:
+        query["created_at"] = {"$gte": datetime.fromisoformat(start_date)}
+    if end_date:
+        if "created_at" not in query:
+            query["created_at"] = {}
+        query["created_at"]["$lte"] = datetime.fromisoformat(end_date)
+    
+    transactions = await db.wallet_transactions.find(query).sort("created_at", -1).to_list(1000)
+    
+    total_credit = sum(t["amount"] for t in transactions if t["amount"] > 0)
+    total_debit = sum(abs(t["amount"]) for t in transactions if t["amount"] < 0)
     
     return {
-        "message": "Payment successful",
-        "amount_paid": payment_amount,
-        "total_paid": new_paid,
-        "amount_remaining": player_payment["amount_due"] - new_paid,
-        "status": new_status
+        "transactions": [WalletTransaction(**t) for t in transactions],
+        "summary": {
+            "total_credit": total_credit,
+            "total_debit": total_debit,
+            "net": total_credit - total_debit,
+            "count": len(transactions)
+        }
     }
 
 # ==================== GROUND ROUTES ====================
 
-@api_router.post("/grounds", response_model=Ground)
+@api_router.post("/grounds")
 async def create_ground(ground_data: GroundCreate, current_user: User = Depends(get_current_user)):
-    """Create a new ground (ground owner)"""
-    ground = Ground(
-        **ground_data.dict(),
-        owner_id=current_user.id
-    )
+    ground = Ground(**ground_data.dict(), owner_id=current_user.id)
     await db.grounds.insert_one(ground.dict())
-    
-    # Update user role
-    await db.users.update_one(
-        {"id": current_user.id},
-        {"$set": {"role": UserRole.GROUND_OWNER}}
-    )
-    
+    await db.users.update_one({"id": current_user.id}, {"$set": {"role": UserRole.GROUND_OWNER}})
     return ground
 
 @api_router.get("/grounds")
 async def get_grounds(
     location: Optional[str] = None,
     ground_type: Optional[GroundType] = None,
+    turf_type: Optional[TurfType] = None,
     has_lighting: Optional[bool] = None,
+    has_parking: Optional[bool] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
     current_user: User = Depends(get_current_user)
 ):
-    """Get all grounds with optional filters"""
     query = {}
     if location:
         query["location"] = {"$regex": location, "$options": "i"}
     if ground_type:
         query["type"] = ground_type
+    if turf_type:
+        query["turf_type"] = turf_type
     if has_lighting is not None:
         query["has_lighting"] = has_lighting
+    if has_parking is not None:
+        query["has_parking"] = has_parking
+    if min_price is not None:
+        query["price_per_hour"] = {"$gte": min_price}
+    if max_price is not None:
+        if "price_per_hour" not in query:
+            query["price_per_hour"] = {}
+        query["price_per_hour"]["$lte"] = max_price
     
     grounds = await db.grounds.find(query).to_list(100)
     return [Ground(**g) for g in grounds]
 
-@api_router.get("/grounds/{ground_id}", response_model=Ground)
+@api_router.get("/grounds/{ground_id}")
 async def get_ground(ground_id: str, current_user: User = Depends(get_current_user)):
-    """Get ground by ID"""
     ground_data = await db.grounds.find_one({"id": ground_id})
     if not ground_data:
         raise HTTPException(status_code=404, detail="Ground not found")
     return Ground(**ground_data)
 
+@api_router.put("/grounds/{ground_id}")
+async def update_ground(ground_id: str, update: GroundUpdate, current_user: User = Depends(get_current_user)):
+    ground_data = await db.grounds.find_one({"id": ground_id})
+    if not ground_data:
+        raise HTTPException(status_code=404, detail="Ground not found")
+    if ground_data["owner_id"] != current_user.id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    update_data = {k: v for k, v in update.dict().items() if v is not None}
+    await db.grounds.update_one({"id": ground_id}, {"$set": update_data})
+    ground_data = await db.grounds.find_one({"id": ground_id})
+    return Ground(**ground_data)
+
 @api_router.post("/grounds/{ground_id}/slots")
 async def add_slots(ground_id: str, slots: List[GroundSlot], current_user: User = Depends(get_current_user)):
-    """Add available slots to ground (owner only)"""
+    ground_data = await db.grounds.find_one({"id": ground_id})
+    if not ground_data:
+        raise HTTPException(status_code=404, detail="Ground not found")
+    if ground_data["owner_id"] != current_user.id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    slot_dicts = [s.dict() for s in slots]
+    await db.grounds.update_one({"id": ground_id}, {"$push": {"slots": {"$each": slot_dicts}}})
+    return {"message": f"Added {len(slots)} slots"}
+
+@api_router.delete("/grounds/{ground_id}/slots/{slot_id}")
+async def remove_slot(ground_id: str, slot_id: str, current_user: User = Depends(get_current_user)):
     ground_data = await db.grounds.find_one({"id": ground_id})
     if not ground_data:
         raise HTTPException(status_code=404, detail="Ground not found")
     if ground_data["owner_id"] != current_user.id:
-        raise HTTPException(status_code=403, detail="Only owner can manage slots")
+        raise HTTPException(status_code=403, detail="Not authorized")
     
-    slot_dicts = [s.dict() for s in slots]
-    await db.grounds.update_one(
-        {"id": ground_id},
-        {"$push": {"slots": {"$each": slot_dicts}}}
-    )
-    
-    return {"message": f"Added {len(slots)} slots"}
+    await db.grounds.update_one({"id": ground_id}, {"$pull": {"slots": {"id": slot_id}}})
+    return {"message": "Slot removed"}
 
 @api_router.post("/grounds/book")
 async def book_slot(request: BookSlotRequest, current_user: User = Depends(get_current_user)):
-    """Book a ground slot"""
     ground_data = await db.grounds.find_one({"id": request.ground_id})
     if not ground_data:
         raise HTTPException(status_code=404, detail="Ground not found")
     
-    # Find the slot
     slot = None
     slot_index = -1
     for i, s in enumerate(ground_data.get("slots", [])):
@@ -973,87 +1152,131 @@ async def book_slot(request: BookSlotRequest, current_user: User = Depends(get_c
     if not slot:
         raise HTTPException(status_code=404, detail="Slot not found")
     if not slot["is_available"]:
-        raise HTTPException(status_code=400, detail="Slot is not available")
+        raise HTTPException(status_code=400, detail="Slot not available")
     
-    # Check wallet balance
     if current_user.wallet_balance < slot["price"]:
         raise HTTPException(status_code=400, detail="Insufficient wallet balance")
     
-    # Deduct from wallet
     new_balance = current_user.wallet_balance - slot["price"]
-    transaction = WalletTransaction(
-        user_id=current_user.id,
-        type=TransactionType.GROUND_BOOKING,
-        amount=-slot["price"],
-        balance_after=new_balance,
-        description=f"Ground booking: {ground_data['name']}",
-        reference_id=request.ground_id
-    )
-    await db.wallet_transactions.insert_one(transaction.dict())
-    await db.users.update_one(
-        {"id": current_user.id},
-        {"$set": {"wallet_balance": new_balance}}
-    )
     
-    # Update slot
-    await db.grounds.update_one(
-        {"id": request.ground_id},
-        {"$set": {
+    booking = GroundBooking(
+        ground_id=request.ground_id,
+        ground_name=ground_data["name"],
+        slot_id=request.slot_id,
+        user_id=current_user.id,
+        match_id=request.match_id,
+        date=slot["date"],
+        start_time=slot["start_time"],
+        end_time=slot["end_time"],
+        price=slot["price"]
+    )
+    await db.ground_bookings.insert_one(booking.dict())
+    
+    transaction = WalletTransaction(user_id=current_user.id, type=TransactionType.GROUND_BOOKING, amount=-slot["price"], balance_after=new_balance, description=f"Ground booking: {ground_data['name']}", reference_id=booking.id)
+    await db.wallet_transactions.insert_one(transaction.dict())
+    await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_balance}, "$inc": {"total_spent": slot["price"]}})
+    
+    await db.grounds.update_one({"id": request.ground_id}, {
+        "$set": {
             f"slots.{slot_index}.is_available": False,
             f"slots.{slot_index}.booked_by": current_user.id,
+            f"slots.{slot_index}.booking_id": booking.id,
             f"slots.{slot_index}.match_id": request.match_id
         },
-        "$inc": {"total_bookings": 1}}
-    )
+        "$inc": {"total_bookings": 1, "total_earnings": slot["price"]}
+    })
     
-    # Notify ground owner
-    await create_notification(
-        ground_data["owner_id"],
-        "New Booking",
-        f"Your ground {ground_data['name']} has been booked",
-        "ground_booking",
-        request.ground_id
-    )
+    await create_notification(ground_data["owner_id"], "New Booking", f"{ground_data['name']} booked for {slot['date']} {slot['start_time']}", "ground_booking", booking.id)
     
-    return {"message": "Booking successful", "transaction_id": transaction.id}
+    return {"message": "Booking successful", "booking_id": booking.id, "transaction_id": transaction.id}
+
+@api_router.get("/grounds/bookings/my")
+async def get_my_bookings(current_user: User = Depends(get_current_user)):
+    bookings = await db.ground_bookings.find({"user_id": current_user.id}).sort("created_at", -1).to_list(50)
+    return [GroundBooking(**b) for b in bookings]
+
+@api_router.post("/grounds/bookings/cancel")
+async def cancel_booking(request: CancelBookingRequest, current_user: User = Depends(get_current_user)):
+    booking_data = await db.ground_bookings.find_one({"id": request.booking_id})
+    if not booking_data:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking_data["user_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your booking")
+    if booking_data["status"] != BookingStatus.CONFIRMED:
+        raise HTTPException(status_code=400, detail="Booking already cancelled")
+    
+    ground_data = await db.grounds.find_one({"id": booking_data["ground_id"]})
+    cancellation_fee = booking_data["price"] * (ground_data.get("cancellation_fee_percent", 20) / 100)
+    refund_amount = booking_data["price"] - cancellation_fee
+    
+    new_balance = current_user.wallet_balance + refund_amount
+    
+    transaction = WalletTransaction(user_id=current_user.id, type=TransactionType.REFUND, amount=refund_amount, balance_after=new_balance, description=f"Booking cancellation refund (fee: AED {cancellation_fee:.2f})", reference_id=request.booking_id)
+    await db.wallet_transactions.insert_one(transaction.dict())
+    await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_balance}})
+    
+    await db.ground_bookings.update_one({"id": request.booking_id}, {"$set": {"status": BookingStatus.CANCELLED}})
+    
+    # Make slot available again
+    for i, s in enumerate(ground_data.get("slots", [])):
+        if s.get("booking_id") == request.booking_id:
+            await db.grounds.update_one({"id": booking_data["ground_id"]}, {"$set": {
+                f"slots.{i}.is_available": True,
+                f"slots.{i}.booked_by": None,
+                f"slots.{i}.booking_id": None
+            }})
+            break
+    
+    return {"message": "Booking cancelled", "refund_amount": refund_amount, "cancellation_fee": cancellation_fee}
 
 @api_router.get("/grounds/my-grounds")
 async def get_my_grounds(current_user: User = Depends(get_current_user)):
-    """Get grounds owned by current user"""
     grounds = await db.grounds.find({"owner_id": current_user.id}).to_list(100)
     return [Ground(**g) for g in grounds]
+
+@api_router.get("/grounds/{ground_id}/analytics")
+async def get_ground_analytics(ground_id: str, current_user: User = Depends(get_current_user)):
+    ground_data = await db.grounds.find_one({"id": ground_id})
+    if not ground_data:
+        raise HTTPException(status_code=404, detail="Ground not found")
+    if ground_data["owner_id"] != current_user.id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    bookings = await db.ground_bookings.find({"ground_id": ground_id}).to_list(1000)
+    
+    total_slots = len(ground_data.get("slots", []))
+    booked_slots = len([s for s in ground_data.get("slots", []) if not s["is_available"]])
+    utilization = (booked_slots / total_slots * 100) if total_slots > 0 else 0
+    
+    return {
+        "ground": Ground(**ground_data),
+        "total_bookings": ground_data.get("total_bookings", 0),
+        "total_earnings": ground_data.get("total_earnings", 0),
+        "total_slots": total_slots,
+        "booked_slots": booked_slots,
+        "utilization_percent": utilization,
+        "average_rating": ground_data.get("rating", 0)
+    }
 
 # ==================== NOTIFICATION ROUTES ====================
 
 @api_router.get("/notifications")
 async def get_notifications(current_user: User = Depends(get_current_user)):
-    """Get all notifications for current user"""
-    notifications = await db.notifications.find(
-        {"user_id": current_user.id}
-    ).sort("created_at", -1).to_list(50)
+    notifications = await db.notifications.find({"user_id": current_user.id}).sort("created_at", -1).to_list(50)
     return [Notification(**n) for n in notifications]
 
 @api_router.put("/notifications/{notification_id}/read")
 async def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user)):
-    """Mark notification as read"""
-    await db.notifications.update_one(
-        {"id": notification_id, "user_id": current_user.id},
-        {"$set": {"is_read": True}}
-    )
+    await db.notifications.update_one({"id": notification_id, "user_id": current_user.id}, {"$set": {"is_read": True}})
     return {"message": "Marked as read"}
 
 @api_router.put("/notifications/read-all")
 async def mark_all_read(current_user: User = Depends(get_current_user)):
-    """Mark all notifications as read"""
-    await db.notifications.update_many(
-        {"user_id": current_user.id},
-        {"$set": {"is_read": True}}
-    )
+    await db.notifications.update_many({"user_id": current_user.id}, {"$set": {"is_read": True}})
     return {"message": "All marked as read"}
 
 @api_router.get("/notifications/unread-count")
 async def get_unread_count(current_user: User = Depends(get_current_user)):
-    """Get count of unread notifications"""
     count = await db.notifications.count_documents({"user_id": current_user.id, "is_read": False})
     return {"count": count}
 
@@ -1061,41 +1284,32 @@ async def get_unread_count(current_user: User = Depends(get_current_user)):
 
 @api_router.get("/dashboard/player")
 async def get_player_dashboard(current_user: User = Depends(get_current_user)):
-    """Get player dashboard data"""
-    # Upcoming matches
     upcoming = await db.matches.find({
         "$or": [
             {"confirmed_player_ids": current_user.id},
-            {"invited_player_ids": current_user.id}
+            {"invited_player_ids": current_user.id},
+            {"captain_id": current_user.id}
         ],
         "date": {"$gte": datetime.utcnow()},
         "status": {"$nin": [MatchStatus.CANCELLED, MatchStatus.COMPLETED]}
     }).sort("date", 1).to_list(10)
     
-    # Past matches
     past = await db.matches.find({
-        "$or": [
-            {"confirmed_player_ids": current_user.id},
-            {"captain_id": current_user.id}
-        ],
+        "$or": [{"confirmed_player_ids": current_user.id}, {"captain_id": current_user.id}],
         "status": MatchStatus.COMPLETED
     }).sort("date", -1).to_list(10)
     
-    # Recent transactions
-    transactions = await db.wallet_transactions.find(
-        {"user_id": current_user.id}
-    ).sort("created_at", -1).to_list(5)
+    transactions = await db.wallet_transactions.find({"user_id": current_user.id}).sort("created_at", -1).to_list(5)
     
-    # Pending payments
     pending_matches = await db.matches.find({
         "player_payments.user_id": current_user.id,
-        "player_payments.status": PaymentStatus.PENDING
+        "player_payments.status": {"$in": [PaymentStatus.PENDING, PaymentStatus.PARTIAL]}
     }).to_list(10)
     
     pending_amount = 0
     for match in pending_matches:
         for payment in match.get("player_payments", []):
-            if payment["user_id"] == current_user.id and payment["status"] == PaymentStatus.PENDING:
+            if payment["user_id"] == current_user.id and payment["status"] in [PaymentStatus.PENDING, PaymentStatus.PARTIAL]:
                 pending_amount += payment["amount_due"] - payment.get("amount_paid", 0)
     
     return {
@@ -1104,22 +1318,21 @@ async def get_player_dashboard(current_user: User = Depends(get_current_user)):
         "past_matches": [Match(**m) for m in past],
         "recent_transactions": [WalletTransaction(**t) for t in transactions],
         "pending_payment_amount": pending_amount,
-        "teams_count": len(current_user.team_ids)
+        "teams_count": len(current_user.team_ids),
+        "matches_played": current_user.matches_played,
+        "total_spent": current_user.total_spent
     }
 
 @api_router.get("/dashboard/captain/{team_id}")
 async def get_captain_dashboard(team_id: str, current_user: User = Depends(get_current_user)):
-    """Get captain dashboard for a team"""
     team_data = await db.teams.find_one({"id": team_id})
     if not team_data:
         raise HTTPException(status_code=404, detail="Team not found")
     if team_data["captain_id"] != current_user.id:
-        raise HTTPException(status_code=403, detail="Not captain of this team")
+        raise HTTPException(status_code=403, detail="Not captain")
     
-    # Get all matches for team
     matches = await db.matches.find({"team_id": team_id}).sort("date", -1).to_list(100)
     
-    # Calculate stats
     total_matches = len(matches)
     total_collected = 0
     total_outstanding = 0
@@ -1127,10 +1340,9 @@ async def get_captain_dashboard(team_id: str, current_user: User = Depends(get_c
     for match in matches:
         for payment in match.get("player_payments", []):
             total_collected += payment.get("amount_paid", 0)
-            if payment["status"] == PaymentStatus.PENDING:
+            if payment["status"] in [PaymentStatus.PENDING, PaymentStatus.PARTIAL]:
                 total_outstanding += payment["amount_due"] - payment.get("amount_paid", 0)
     
-    # Upcoming matches with payment status
     upcoming = [m for m in matches if m["status"] not in [MatchStatus.COMPLETED, MatchStatus.CANCELLED]]
     
     return {
@@ -1139,159 +1351,132 @@ async def get_captain_dashboard(team_id: str, current_user: User = Depends(get_c
         "total_collected": total_collected,
         "total_outstanding": total_outstanding,
         "player_count": len(team_data.get("player_ids", [])),
+        "pool_balance": team_data.get("pool_balance", 0),
         "upcoming_matches": [Match(**m) for m in upcoming[:5]],
         "recent_matches": [Match(**m) for m in matches[:10]]
     }
 
-# ==================== HEALTH CHECK ====================
+@api_router.get("/dashboard/ground-owner")
+async def get_ground_owner_dashboard(current_user: User = Depends(require_ground_owner)):
+    grounds = await db.grounds.find({"owner_id": current_user.id}).to_list(100)
+    
+    total_earnings = sum(g.get("total_earnings", 0) for g in grounds)
+    total_bookings = sum(g.get("total_bookings", 0) for g in grounds)
+    
+    recent_bookings = await db.ground_bookings.find({
+        "ground_id": {"$in": [g["id"] for g in grounds]}
+    }).sort("created_at", -1).to_list(20)
+    
+    return {
+        "grounds": [Ground(**g) for g in grounds],
+        "total_earnings": total_earnings,
+        "total_bookings": total_bookings,
+        "recent_bookings": [GroundBooking(**b) for b in recent_bookings]
+    }
+
+@api_router.get("/dashboard/admin")
+async def get_admin_dashboard(current_user: User = Depends(require_admin)):
+    total_users = await db.users.count_documents({})
+    total_teams = await db.teams.count_documents({})
+    total_matches = await db.matches.count_documents({})
+    total_grounds = await db.grounds.count_documents({})
+    
+    completed_matches = await db.matches.count_documents({"status": MatchStatus.COMPLETED})
+    
+    transactions = await db.wallet_transactions.find({}).to_list(1000)
+    total_transaction_volume = sum(abs(t["amount"]) for t in transactions)
+    
+    grounds = await db.grounds.find({}).to_list(100)
+    total_ground_earnings = sum(g.get("total_earnings", 0) for g in grounds)
+    
+    recent_users = await db.users.find({}).sort("created_at", -1).to_list(10)
+    recent_matches = await db.matches.find({}).sort("created_at", -1).to_list(10)
+    
+    return {
+        "total_users": total_users,
+        "total_teams": total_teams,
+        "total_matches": total_matches,
+        "completed_matches": completed_matches,
+        "total_grounds": total_grounds,
+        "total_transaction_volume": total_transaction_volume,
+        "total_ground_earnings": total_ground_earnings,
+        "recent_users": [User(**u) for u in recent_users],
+        "recent_matches": [Match(**m) for m in recent_matches]
+    }
+
+# ==================== ADMIN ROUTES ====================
+
+@api_router.get("/admin/users")
+async def admin_get_users(skip: int = 0, limit: int = 50, current_user: User = Depends(require_admin)):
+    users = await db.users.find({}).skip(skip).limit(limit).to_list(limit)
+    total = await db.users.count_documents({})
+    return {"users": [User(**u) for u in users], "total": total}
+
+@api_router.put("/admin/users/{user_id}/role")
+async def admin_update_user_role(user_id: str, role: UserRole, current_user: User = Depends(require_admin)):
+    await db.users.update_one({"id": user_id}, {"$set": {"role": role}})
+    return {"message": "Role updated"}
+
+@api_router.get("/admin/transactions")
+async def admin_get_transactions(skip: int = 0, limit: int = 50, current_user: User = Depends(require_admin)):
+    transactions = await db.wallet_transactions.find({}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.wallet_transactions.count_documents({})
+    return {"transactions": [WalletTransaction(**t) for t in transactions], "total": total}
+
+# ==================== HEALTH & SEED ====================
 
 @api_router.get("/")
 async def root():
-    return {"message": "Batlabz API is running", "version": "1.0.0"}
+    return {"message": "Batlabz API is running", "version": "2.0.0"}
 
 @api_router.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
-# ==================== SEED DATA ====================
-
 @api_router.post("/seed")
 async def seed_data():
-    """Seed sample data for testing"""
-    
     # Sample Grounds
     grounds_data = [
-        {
-            "id": "ground-1",
-            "owner_id": "system",
-            "name": "Dubai Sports City Cricket Ground",
-            "location": "Dubai Sports City, Dubai",
-            "type": "outdoor",
-            "turf_type": "natural",
-            "has_lighting": True,
-            "has_parking": True,
-            "price_per_hour": 800,
-            "description": "Professional cricket ground with world-class facilities. Perfect for T20 and friendly matches.",
-            "images": [],
-            "amenities": ["Changing Rooms", "Scoreboard", "Practice Nets", "Parking", "Floodlights", "Pavilion"],
-            "rating": 4.8,
-            "total_bookings": 156,
-            "slots": [
-                {"id": "slot-1-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 2400, "is_available": True},
-                {"id": "slot-1-2", "date": "2025-01-15", "start_time": "09:00", "end_time": "12:00", "price": 2400, "is_available": True},
-                {"id": "slot-1-3", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 2800, "is_available": True},
-                {"id": "slot-1-4", "date": "2025-01-15", "start_time": "19:00", "end_time": "22:00", "price": 3200, "is_available": True},
-                {"id": "slot-1-5", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 2400, "is_available": True},
-                {"id": "slot-1-6", "date": "2025-01-16", "start_time": "16:00", "end_time": "19:00", "price": 2800, "is_available": True},
-            ],
-            "created_at": datetime.utcnow()
-        },
-        {
-            "id": "ground-2",
-            "owner_id": "system",
-            "name": "Sharjah Cricket Stadium - Practice Ground",
-            "location": "Sharjah Cricket Stadium, Sharjah",
-            "type": "outdoor",
-            "turf_type": "artificial",
-            "has_lighting": True,
-            "has_parking": True,
-            "price_per_hour": 600,
-            "description": "Adjacent to the famous Sharjah Cricket Stadium. Great for practice and friendly matches.",
-            "images": [],
-            "amenities": ["Changing Rooms", "Practice Nets", "Parking", "Floodlights", "Refreshments"],
-            "rating": 4.5,
-            "total_bookings": 89,
-            "slots": [
-                {"id": "slot-2-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 1800, "is_available": True},
-                {"id": "slot-2-2", "date": "2025-01-15", "start_time": "09:00", "end_time": "12:00", "price": 1800, "is_available": True},
-                {"id": "slot-2-3", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 2000, "is_available": True},
-                {"id": "slot-2-4", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 1800, "is_available": True},
-            ],
-            "created_at": datetime.utcnow()
-        },
-        {
-            "id": "ground-3",
-            "owner_id": "system",
-            "name": "ICC Academy Ground",
-            "location": "ICC Academy, Dubai",
-            "type": "outdoor",
-            "turf_type": "natural",
-            "has_lighting": True,
-            "has_parking": True,
-            "price_per_hour": 1000,
-            "description": "Premium cricket facility used by international teams for practice. Top-notch amenities.",
-            "images": [],
-            "amenities": ["Changing Rooms", "Gym", "Swimming Pool", "Practice Nets", "Video Analysis", "Coaching"],
-            "rating": 4.9,
-            "total_bookings": 234,
-            "slots": [
-                {"id": "slot-3-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 3000, "is_available": True},
-                {"id": "slot-3-2", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 3500, "is_available": True},
-                {"id": "slot-3-3", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 3000, "is_available": True},
-            ],
-            "created_at": datetime.utcnow()
-        },
-        {
-            "id": "ground-4",
-            "owner_id": "system",
-            "name": "Al Ain Cricket Ground",
-            "location": "Al Ain, Abu Dhabi",
-            "type": "outdoor",
-            "turf_type": "matting",
-            "has_lighting": False,
-            "has_parking": True,
-            "price_per_hour": 400,
-            "description": "Budget-friendly cricket ground perfect for weekend matches and practice sessions.",
-            "images": [],
-            "amenities": ["Parking", "Basic Changing Area", "Scoreboard"],
-            "rating": 4.0,
-            "total_bookings": 45,
-            "slots": [
-                {"id": "slot-4-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 1200, "is_available": True},
-                {"id": "slot-4-2", "date": "2025-01-15", "start_time": "09:00", "end_time": "12:00", "price": 1200, "is_available": True},
-                {"id": "slot-4-3", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 1200, "is_available": True},
-            ],
-            "created_at": datetime.utcnow()
-        },
-        {
-            "id": "ground-5",
-            "owner_id": "system",
-            "name": "Cricket World Indoor",
-            "location": "Al Quoz, Dubai",
-            "type": "indoor",
-            "turf_type": "artificial",
-            "has_lighting": True,
-            "has_parking": True,
-            "price_per_hour": 500,
-            "description": "Climate-controlled indoor cricket facility. Perfect for nets and T10 matches.",
-            "images": [],
-            "amenities": ["Air Conditioning", "Bowling Machine", "Video Recording", "Cafe", "Parking"],
-            "rating": 4.6,
-            "total_bookings": 178,
-            "slots": [
-                {"id": "slot-5-1", "date": "2025-01-15", "start_time": "10:00", "end_time": "12:00", "price": 1000, "is_available": True},
-                {"id": "slot-5-2", "date": "2025-01-15", "start_time": "14:00", "end_time": "16:00", "price": 1000, "is_available": True},
-                {"id": "slot-5-3", "date": "2025-01-15", "start_time": "18:00", "end_time": "20:00", "price": 1200, "is_available": True},
-                {"id": "slot-5-4", "date": "2025-01-15", "start_time": "20:00", "end_time": "22:00", "price": 1200, "is_available": True},
-                {"id": "slot-5-5", "date": "2025-01-16", "start_time": "10:00", "end_time": "12:00", "price": 1000, "is_available": True},
-            ],
-            "created_at": datetime.utcnow()
-        },
+        {"id": "ground-1", "owner_id": "system", "name": "Dubai Sports City Cricket Ground", "location": "Dubai Sports City, Dubai", "type": "outdoor", "turf_type": "natural", "has_lighting": True, "has_parking": True, "price_per_hour": 800, "description": "Professional cricket ground with world-class facilities.", "images": [], "amenities": ["Changing Rooms", "Scoreboard", "Practice Nets", "Parking", "Floodlights", "Pavilion"], "rating": 4.8, "total_bookings": 156, "total_earnings": 0, "slots": [
+            {"id": "slot-1-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 2400, "is_available": True},
+            {"id": "slot-1-2", "date": "2025-01-15", "start_time": "09:00", "end_time": "12:00", "price": 2400, "is_available": True},
+            {"id": "slot-1-3", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 2800, "is_available": True},
+            {"id": "slot-1-4", "date": "2025-01-15", "start_time": "19:00", "end_time": "22:00", "price": 3200, "is_available": True},
+            {"id": "slot-1-5", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 2400, "is_available": True},
+            {"id": "slot-1-6", "date": "2025-01-16", "start_time": "16:00", "end_time": "19:00", "price": 2800, "is_available": True},
+        ], "created_at": datetime.utcnow()},
+        {"id": "ground-2", "owner_id": "system", "name": "Sharjah Cricket Stadium - Practice", "location": "Sharjah", "type": "outdoor", "turf_type": "artificial", "has_lighting": True, "has_parking": True, "price_per_hour": 600, "description": "Practice ground near famous stadium.", "images": [], "amenities": ["Changing Rooms", "Practice Nets", "Parking", "Floodlights"], "rating": 4.5, "total_bookings": 89, "total_earnings": 0, "slots": [
+            {"id": "slot-2-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 1800, "is_available": True},
+            {"id": "slot-2-2", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 2000, "is_available": True},
+        ], "created_at": datetime.utcnow()},
+        {"id": "ground-3", "owner_id": "system", "name": "ICC Academy Ground", "location": "ICC Academy, Dubai", "type": "outdoor", "turf_type": "natural", "has_lighting": True, "has_parking": True, "price_per_hour": 1000, "description": "Premium facility used by international teams.", "images": [], "amenities": ["Changing Rooms", "Gym", "Pool", "Practice Nets", "Video Analysis"], "rating": 4.9, "total_bookings": 234, "total_earnings": 0, "slots": [
+            {"id": "slot-3-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 3000, "is_available": True},
+            {"id": "slot-3-2", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 3500, "is_available": True},
+        ], "created_at": datetime.utcnow()},
+        {"id": "ground-4", "owner_id": "system", "name": "Al Ain Cricket Ground", "location": "Al Ain, Abu Dhabi", "type": "outdoor", "turf_type": "matting", "has_lighting": False, "has_parking": True, "price_per_hour": 400, "description": "Budget-friendly option.", "images": [], "amenities": ["Parking", "Basic Facilities"], "rating": 4.0, "total_bookings": 45, "total_earnings": 0, "slots": [
+            {"id": "slot-4-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 1200, "is_available": True},
+            {"id": "slot-4-2", "date": "2025-01-15", "start_time": "09:00", "end_time": "12:00", "price": 1200, "is_available": True},
+        ], "created_at": datetime.utcnow()},
+        {"id": "ground-5", "owner_id": "system", "name": "Cricket World Indoor", "location": "Al Quoz, Dubai", "type": "indoor", "turf_type": "artificial", "has_lighting": True, "has_parking": True, "price_per_hour": 500, "description": "Climate-controlled indoor facility.", "images": [], "amenities": ["AC", "Bowling Machine", "Video Recording", "Cafe"], "rating": 4.6, "total_bookings": 178, "total_earnings": 0, "slots": [
+            {"id": "slot-5-1", "date": "2025-01-15", "start_time": "10:00", "end_time": "12:00", "price": 1000, "is_available": True},
+            {"id": "slot-5-2", "date": "2025-01-15", "start_time": "18:00", "end_time": "20:00", "price": 1200, "is_available": True},
+        ], "created_at": datetime.utcnow()},
     ]
     
-    # Clear existing grounds and insert new ones
     await db.grounds.delete_many({})
     await db.grounds.insert_many(grounds_data)
     
-    return {
-        "message": "Seed data created successfully",
-        "grounds_created": len(grounds_data),
-    }
+    # Create admin user
+    admin_exists = await db.users.find_one({"phone": "+971000000000"})
+    if not admin_exists:
+        admin = User(phone="+971000000000", name="Admin", role=UserRole.ADMIN)
+        await db.users.insert_one(admin.dict())
+    
+    return {"message": "Seed data created", "grounds_created": len(grounds_data)}
 
 # Include router
 app.include_router(api_router)
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
