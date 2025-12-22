@@ -139,14 +139,6 @@ export const groundAPI = {
   getAnalytics: (groundId: string) => api.get(`/grounds/${groundId}/analytics`),
 };
 
-// Notification APIs
-export const notificationAPI = {
-  getAll: () => api.get('/notifications'),
-  markRead: (notificationId: string) => api.put(`/notifications/${notificationId}/read`),
-  markAllRead: () => api.put('/notifications/read-all'),
-  getUnreadCount: () => api.get('/notifications/unread-count'),
-};
-
 // Dashboard APIs
 export const dashboardAPI = {
   getPlayerDashboard: () => api.get('/dashboard/player'),
