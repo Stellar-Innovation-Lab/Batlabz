@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,16 +13,12 @@ export default function OTPScreen() {
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const { login } = useAuthStore();
   
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(30);
-  
-  const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
-    inputRefs.current[0]?.focus();
-    
     const timer = setInterval(() => {
       setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
@@ -30,34 +26,15 @@ export default function OTPScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleOtpChange = (value: string, index: number) => {
-    if (value.length > 1) {
-      // Handle paste
-      const otpArray = value.slice(0, 6).split('');
-      setOtp(otpArray.concat(Array(6 - otpArray.length).fill('')));
-      inputRefs.current[Math.min(otpArray.length, 5)]?.focus();
-      return;
-    }
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
+  const handleOtpChange = (value: string) => {
+    // Only allow numbers and max 6 characters
+    const cleaned = value.replace(/[^0-9]/g, '').slice(0, 6);
+    setOtp(cleaned);
   };
 
   const handleVerify = async () => {
-    const otpString = otp.join('');
-    if (otpString.length !== 6) {
-      setError('Please enter the complete OTP');
+    if (otp.length !== 6) {
+      setError('Please enter the complete 6-digit OTP');
       return;
     }
 
@@ -65,8 +42,8 @@ export default function OTPScreen() {
     setLoading(true);
 
     try {
-      const response = await authAPI.verifyOTP(phone, otpString);
-      const { access_token, user_id, is_new_user } = response.data;
+      const response = await authAPI.verifyOTP(phone, otp);
+      const { access_token, is_new_user } = response.data;
       
       // Fetch user data with the token directly
       const userResponse = await getMeWithToken(access_token);
@@ -93,6 +70,7 @@ export default function OTPScreen() {
     try {
       await authAPI.requestOTP(phone);
       setCountdown(30);
+      setError('');
     } catch (err) {
       setError('Failed to resend OTP');
     }
@@ -119,26 +97,19 @@ export default function OTPScreen() {
           </View>
 
           <View style={styles.otpContainer}>
-            {otp.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
-                style={[
-                  styles.otpInput,
-                  digit && styles.otpInputFilled,
-                  error && styles.otpInputError,
-                ]}
-                value={digit}
-                onChangeText={(value) => handleOtpChange(value, index)}
-                onKeyPress={(e) => handleKeyPress(e, index)}
-                keyboardType="number-pad"
-                maxLength={6}
-                selectTextOnFocus
-              />
-            ))}
+            <TextInput
+              style={[styles.otpInput, error ? styles.otpInputError : null]}
+              value={otp}
+              onChangeText={handleOtpChange}
+              keyboardType="number-pad"
+              maxLength={6}
+              placeholder="000000"
+              placeholderTextColor={COLORS.textMuted}
+              autoFocus
+            />
           </View>
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Text style={styles.hint}>For testing, use OTP: 123456</Text>
 
@@ -149,10 +120,11 @@ export default function OTPScreen() {
             fullWidth
             size="lg"
             style={styles.button}
+            disabled={otp.length !== 6}
           />
 
           <TouchableOpacity onPress={handleResend} disabled={countdown > 0}>
-            <Text style={[styles.resend, countdown > 0 && styles.resendDisabled]}>
+            <Text style={[styles.resend, countdown > 0 ? styles.resendDisabled : null]}>
               {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP'}
             </Text>
           </TouchableOpacity>
@@ -210,25 +182,21 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   otpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: SPACING.lg,
+    alignItems: 'center',
   },
   otpInput: {
-    width: 50,
-    height: 60,
+    width: '100%',
+    height: 70,
     backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 2,
     borderColor: COLORS.border,
     textAlign: 'center',
-    fontSize: FONT_SIZES.xxl,
+    fontSize: 32,
     color: COLORS.text,
     fontWeight: 'bold',
-  },
-  otpInputFilled: {
-    borderColor: COLORS.primary,
-    borderWidth: 2,
+    letterSpacing: 16,
   },
   otpInputError: {
     borderColor: COLORS.error,
@@ -237,6 +205,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     textAlign: 'center',
     marginBottom: SPACING.md,
+    fontSize: FONT_SIZES.md,
   },
   hint: {
     fontSize: FONT_SIZES.sm,
