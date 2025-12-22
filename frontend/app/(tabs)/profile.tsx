@@ -42,39 +42,69 @@ export default function ProfileScreen() {
       icon: 'person-outline',
       title: 'Edit Profile',
       subtitle: 'Update your information',
-      onPress: () => {},
+      onPress: () => router.push('/profile/edit'),
     },
     {
       icon: 'notifications-outline',
       title: 'Notifications',
-      subtitle: 'Manage your notifications',
-      onPress: () => {},
+      subtitle: 'View your notifications',
+      onPress: () => router.push('/notifications'),
     },
     {
-      icon: 'card-outline',
-      title: 'Payment Methods',
-      subtitle: 'Add or manage cards',
-      onPress: () => {},
+      icon: 'receipt-outline',
+      title: 'Transaction History',
+      subtitle: 'View all transactions',
+      onPress: () => router.push('/wallet/transactions'),
     },
     {
-      icon: 'shield-checkmark-outline',
-      title: 'Privacy & Security',
-      subtitle: 'Account security settings',
-      onPress: () => {},
+      icon: 'settings-outline',
+      title: 'Settings',
+      subtitle: 'App settings & preferences',
+      onPress: () => router.push('/profile/settings'),
     },
     {
       icon: 'help-circle-outline',
       title: 'Help & Support',
       subtitle: 'Get help with Batlabz',
-      onPress: () => {},
-    },
-    {
-      icon: 'document-text-outline',
-      title: 'Terms & Conditions',
-      subtitle: 'Read our terms',
-      onPress: () => {},
+      onPress: () => Alert.alert('Support', 'Contact us at support@batlabz.com'),
     },
   ];
+
+  // Role-specific menu items
+  const roleMenuItems = [];
+  
+  if (user?.role === 'captain') {
+    roleMenuItems.push({
+      icon: 'trophy-outline',
+      title: 'Captain Dashboard',
+      subtitle: 'Manage your team & matches',
+      onPress: () => {
+        if (user.team_ids && user.team_ids.length > 0) {
+          router.push({ pathname: '/team/captain-dashboard', params: { teamId: user.team_ids[0] } });
+        } else {
+          Alert.alert('No Team', 'Create a team first to access captain dashboard');
+        }
+      },
+    });
+  }
+
+  if (user?.role === 'ground_owner') {
+    roleMenuItems.push({
+      icon: 'location-outline',
+      title: 'Ground Owner Dashboard',
+      subtitle: 'Manage your grounds',
+      onPress: () => router.push('/ground/owner-dashboard'),
+    });
+  }
+
+  if (user?.role === 'admin') {
+    roleMenuItems.push({
+      icon: 'shield-checkmark-outline',
+      title: 'Admin Dashboard',
+      subtitle: 'Platform administration',
+      onPress: () => router.push('/admin/dashboard'),
+    });
+  }
 
   return (
     <SafeAreaView style={styles.container}>
