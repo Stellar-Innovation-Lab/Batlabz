@@ -120,10 +120,16 @@ export const groundAPI = {
   create: (data: any) => api.post('/grounds', data),
   getAll: (params?: any) => api.get('/grounds', { params }),
   getGround: (groundId: string) => api.get(`/grounds/${groundId}`),
+  updateGround: (groundId: string, data: any) => api.put(`/grounds/${groundId}`, data),
   addSlots: (groundId: string, slots: any[]) => api.post(`/grounds/${groundId}/slots`, slots),
+  removeSlot: (groundId: string, slotId: string) => api.delete(`/grounds/${groundId}/slots/${slotId}`),
   bookSlot: (groundId: string, slotId: string, matchId?: string) => 
     api.post('/grounds/book', { ground_id: groundId, slot_id: slotId, match_id: matchId }),
+  getMyBookings: () => api.get('/grounds/bookings/my'),
+  cancelBooking: (bookingId: string, reason?: string) => 
+    api.post('/grounds/bookings/cancel', { booking_id: bookingId, reason }),
   getMyGrounds: () => api.get('/grounds/my-grounds'),
+  getAnalytics: (groundId: string) => api.get(`/grounds/${groundId}/analytics`),
 };
 
 // Notification APIs
