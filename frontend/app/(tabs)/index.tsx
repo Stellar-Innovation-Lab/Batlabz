@@ -20,12 +20,16 @@ export default function HomeScreen() {
 
   const fetchDashboard = async () => {
     try {
-      const [dashRes, notifRes] = await Promise.all([
-        dashboardAPI.getPlayerDashboard(),
-        notificationAPI.getUnreadCount(),
-      ]);
+      const dashRes = await dashboardAPI.getPlayerDashboard();
       setDashboard(dashRes.data);
-      setUnreadCount(notifRes.data.count);
+      // Try to get unread count but don't fail if it doesn't work
+      try {
+        const notifRes = await notificationAPI.getAll();
+        const unread = notifRes.data.filter((n: any) => !n.is_read).length;
+        setUnreadCount(unread);
+      } catch (e) {
+        setUnreadCount(0);
+      }
     } catch (error) {
       console.error('Error fetching dashboard:', error);
     } finally {
