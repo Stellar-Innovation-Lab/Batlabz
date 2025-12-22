@@ -438,12 +438,33 @@ export default function MatchDetailScreen() {
         {isCaptain && (
           <View style={styles.captainActions}>
             <Button
+              title="Ride Coordination"
+              onPress={() => router.push({ pathname: '/match/rides', params: { matchId: id } })}
+              fullWidth
+              variant="outline"
+              icon={<Ionicons name="car" size={20} color={COLORS.primary} />}
+              style={{ marginBottom: SPACING.sm }}
+            />
+            <Button
               title="Calculate & Notify Fees"
               onPress={handleCalculateFees}
               loading={actionLoading}
               fullWidth
               variant="outline"
               icon={<Ionicons name="calculator" size={20} color={COLORS.primary} />}
+            />
+          </View>
+        )}
+
+        {/* Player Ride Action */}
+        {isConfirmed && !isCaptain && (
+          <View style={styles.captainActions}>
+            <Button
+              title="Ride Coordination"
+              onPress={() => router.push({ pathname: '/match/rides', params: { matchId: id } })}
+              fullWidth
+              variant="outline"
+              icon={<Ionicons name="car" size={20} color={COLORS.primary} />}
             />
           </View>
         )}
