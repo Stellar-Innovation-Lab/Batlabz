@@ -307,6 +307,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xxl * 2,
   },
   infoCard: {
     marginBottom: SPACING.md,
