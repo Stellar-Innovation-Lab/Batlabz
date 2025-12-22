@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from './theme';
+import { View, StyleSheet, ViewStyle, TouchableOpacity, Platform } from 'react-native';
+import { COLORS, SPACING, BORDER_RADIUS } from './theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -11,7 +11,7 @@ interface CardProps {
 
 export const Card: React.FC<CardProps> = ({ children, style, onPress, variant = 'default' }) => {
   const getCardStyle = (): ViewStyle[] => {
-    const base: ViewStyle[] = [styles.card, SHADOWS.md];
+    const base: ViewStyle[] = [styles.card];
     
     switch (variant) {
       case 'highlight':
