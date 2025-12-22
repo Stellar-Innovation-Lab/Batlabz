@@ -91,8 +91,9 @@ export default function WalletScreen() {
               title="Top Up"
               onPress={() => router.push('/wallet/topup')}
               size="md"
-              icon={<Ionicons name="add-circle" size={20} color={COLORS.text} />}
+              icon={<Ionicons name="add-circle" size={20} color={COLORS.primary} />}
               style={styles.topupButton}
+              textStyle={{ color: COLORS.primary }}
             />
           </View>
         </Card>
