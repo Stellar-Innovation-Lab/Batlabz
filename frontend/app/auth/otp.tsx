@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../src/components/theme';
 import { Button } from '../../src/components';
-import { authAPI, userAPI } from '../../src/services/api';
+import { authAPI, getMeWithToken } from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function OTPScreen() {
