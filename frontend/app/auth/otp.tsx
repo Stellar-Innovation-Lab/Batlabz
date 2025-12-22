@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../src/components/theme';
-import { Button } from '../../src/components';
+import { PremiumBackground, StadiumLights } from '../../src/components/CricketBackgrounds';
+import { PremiumButton } from '../../src/components/PremiumUI';
 import { authAPI, getMeWithToken } from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
 
@@ -12,6 +14,7 @@ export default function OTPScreen() {
   const router = useRouter();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const { login } = useAuthStore();
+  const inputRef = useRef<TextInput>(null);
   
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,14 +25,18 @@ export default function OTPScreen() {
     const timer = setInterval(() => {
       setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    // Auto-focus OTP input
+    setTimeout(() => inputRef.current?.focus(), 500);
+  }, []);
+
   const handleOtpChange = (value: string) => {
-    // Only allow numbers and max 6 characters
     const cleaned = value.replace(/[^0-9]/g, '').slice(0, 6);
     setOtp(cleaned);
+    setError('');
   };
 
   const handleVerify = async () => {
@@ -45,7 +52,6 @@ export default function OTPScreen() {
       const response = await authAPI.verifyOTP(phone, otp);
       const { access_token, is_new_user } = response.data;
       
-      // Fetch user data with the token directly
       const userResponse = await getMeWithToken(access_token);
       const userData = { ...userResponse.data };
       
@@ -76,61 +82,122 @@ export default function OTPScreen() {
     }
   };
 
+  // Render OTP boxes
+  const renderOTPBoxes = () => {
+    const boxes = [];
+    for (let i = 0; i < 6; i++) {
+      const isFilled = otp.length > i;
+      const isActive = otp.length === i;
+      
+      boxes.push(
+        <View
+          key={i}
+          style={[
+            styles.otpBox,
+            isFilled && styles.otpBoxFilled,
+            isActive && styles.otpBoxActive,
+          ]}
+        >
+          <Text style={[styles.otpText, isFilled && styles.otpTextFilled]}>
+            {otp[i] || ''}
+          </Text>
+        </View>
+      );
+    }
+    return boxes;
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+    <View style={styles.container}>
+      <PremiumBackground variant="default" />
+      <StadiumLights intensity={0.15} />
 
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <View style={styles.iconWrapper}>
-              <Ionicons name="shield-checkmark" size={40} color={COLORS.primary} />
-            </View>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          {/* Back Button */}
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+
+          <View style={styles.content}>
+            {/* Shield Icon */}
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.primaryDark]}
+              style={styles.iconContainer}
+            >
+              <Ionicons name="shield-checkmark" size={40} color={COLORS.text} />
+            </LinearGradient>
+
+            {/* Title */}
             <Text style={styles.title}>Verify OTP</Text>
-            <Text style={styles.subtitle}>Enter the 6-digit code sent to</Text>
-            <Text style={styles.phone}>{phone}</Text>
-          </View>
+            <Text style={styles.subtitle}>
+              Enter the 6-digit code sent to{'\n'}
+              <Text style={styles.phoneNumber}>{phone}</Text>
+            </Text>
 
-          <View style={styles.otpContainer}>
+            {/* OTP Input */}
+            <TouchableOpacity 
+              style={styles.otpContainer}
+              activeOpacity={1}
+              onPress={() => inputRef.current?.focus()}
+            >
+              {renderOTPBoxes()}
+            </TouchableOpacity>
+
+            {/* Hidden Input */}
             <TextInput
-              style={[styles.otpInput, error ? styles.otpInputError : null]}
+              ref={inputRef}
+              style={styles.hiddenInput}
               value={otp}
               onChangeText={handleOtpChange}
               keyboardType="number-pad"
               maxLength={6}
-              placeholder="000000"
-              placeholderTextColor={COLORS.textMuted}
               autoFocus
             />
+
+            {/* Test OTP Hint */}
+            <Text style={styles.hint}>For testing, use OTP: 123456</Text>
+
+            {/* Error */}
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={16} color={COLORS.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Verify Button */}
+            <PremiumButton
+              title="Verify"
+              onPress={handleVerify}
+              loading={loading}
+              disabled={otp.length !== 6}
+              variant="primary"
+              size="lg"
+              fullWidth
+            />
+
+            {/* Resend */}
+            <TouchableOpacity 
+              style={styles.resendContainer} 
+              onPress={handleResend}
+              disabled={countdown > 0}
+            >
+              {countdown > 0 ? (
+                <Text style={styles.countdownText}>
+                  Resend OTP in <Text style={styles.countdownNumber}>{countdown}s</Text>
+                </Text>
+              ) : (
+                <Text style={styles.resendText}>Resend OTP</Text>
+              )}
+            </TouchableOpacity>
           </View>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Text style={styles.hint}>For testing, use OTP: 123456</Text>
-
-          <Button
-            title="Verify"
-            onPress={handleVerify}
-            loading={loading}
-            fullWidth
-            size="lg"
-            style={styles.button}
-            disabled={otp.length !== 6}
-          />
-
-          <TouchableOpacity onPress={handleResend} disabled={countdown > 0}>
-            <Text style={[styles.resend, countdown > 0 ? styles.resendDisabled : null]}>
-              {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -139,31 +206,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  safeArea: {
+    flex: 1,
+  },
   keyboardView: {
     flex: 1,
   },
   backButton: {
-    padding: SPACING.md,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: SPACING.md,
+    marginTop: SPACING.sm,
   },
   content: {
     flex: 1,
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: SPACING.xxl,
-  },
-  iconWrapper: {
+  iconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.card,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
   },
   title: {
     fontSize: FONT_SIZES.xxl,
@@ -172,57 +241,83 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: SPACING.xl,
   },
-  phone: {
-    fontSize: FONT_SIZES.lg,
+  phoneNumber: {
     color: COLORS.primary,
     fontWeight: '600',
-    marginTop: SPACING.xs,
   },
   otpContainer: {
-    marginBottom: SPACING.lg,
-    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  otpInput: {
-    width: '100%',
-    height: 70,
-    backgroundColor: COLORS.card,
+  otpBox: {
+    width: 50,
+    height: 60,
     borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.cardSolid,
     borderWidth: 2,
     borderColor: COLORS.border,
-    textAlign: 'center',
-    fontSize: 32,
-    color: COLORS.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otpBoxFilled: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '15',
+  },
+  otpBoxActive: {
+    borderColor: COLORS.gold,
+  },
+  otpText: {
+    fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
-    letterSpacing: 16,
+    color: COLORS.textMuted,
   },
-  otpInputError: {
-    borderColor: COLORS.error,
+  otpTextFilled: {
+    color: COLORS.text,
   },
-  error: {
-    color: COLORS.error,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-    fontSize: FONT_SIZES.md,
+  hiddenInput: {
+    position: 'absolute',
+    opacity: 0,
+    height: 0,
+    width: 0,
   },
   hint: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textMuted,
-    textAlign: 'center',
     marginBottom: SPACING.lg,
   },
-  button: {
-    marginBottom: SPACING.lg,
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    gap: SPACING.xs,
   },
-  resend: {
+  errorText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.error,
+  },
+  resendContainer: {
+    marginTop: SPACING.lg,
+    padding: SPACING.md,
+  },
+  countdownText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    textAlign: 'center',
+    color: COLORS.textMuted,
+  },
+  countdownNumber: {
+    color: COLORS.gold,
     fontWeight: '600',
   },
-  resendDisabled: {
-    color: COLORS.textMuted,
+  resendText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
 });
