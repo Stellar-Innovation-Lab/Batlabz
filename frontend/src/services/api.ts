@@ -55,8 +55,8 @@ export const authAPI = {
 // Notification APIs
 export const notificationAPI = {
   getAll: () => api.get('/notifications'),
-  markRead: (notificationId: string) => api.post(`/notifications/${notificationId}/read`),
-  markAllRead: () => api.post('/notifications/read-all'),
+  markRead: (notificationId: string) => api.put(`/notifications/${notificationId}/read`),
+  markAllRead: () => api.put('/notifications/read-all'),
 };
 
 // User APIs
