@@ -1150,6 +1150,141 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+# ==================== SEED DATA ====================
+
+@api_router.post("/seed")
+async def seed_data():
+    """Seed sample data for testing"""
+    
+    # Sample Grounds
+    grounds_data = [
+        {
+            "id": "ground-1",
+            "owner_id": "system",
+            "name": "Dubai Sports City Cricket Ground",
+            "location": "Dubai Sports City, Dubai",
+            "type": "outdoor",
+            "turf_type": "natural",
+            "has_lighting": True,
+            "has_parking": True,
+            "price_per_hour": 800,
+            "description": "Professional cricket ground with world-class facilities. Perfect for T20 and friendly matches.",
+            "images": [],
+            "amenities": ["Changing Rooms", "Scoreboard", "Practice Nets", "Parking", "Floodlights", "Pavilion"],
+            "rating": 4.8,
+            "total_bookings": 156,
+            "slots": [
+                {"id": "slot-1-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 2400, "is_available": True},
+                {"id": "slot-1-2", "date": "2025-01-15", "start_time": "09:00", "end_time": "12:00", "price": 2400, "is_available": True},
+                {"id": "slot-1-3", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 2800, "is_available": True},
+                {"id": "slot-1-4", "date": "2025-01-15", "start_time": "19:00", "end_time": "22:00", "price": 3200, "is_available": True},
+                {"id": "slot-1-5", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 2400, "is_available": True},
+                {"id": "slot-1-6", "date": "2025-01-16", "start_time": "16:00", "end_time": "19:00", "price": 2800, "is_available": True},
+            ],
+            "created_at": datetime.utcnow()
+        },
+        {
+            "id": "ground-2",
+            "owner_id": "system",
+            "name": "Sharjah Cricket Stadium - Practice Ground",
+            "location": "Sharjah Cricket Stadium, Sharjah",
+            "type": "outdoor",
+            "turf_type": "artificial",
+            "has_lighting": True,
+            "has_parking": True,
+            "price_per_hour": 600,
+            "description": "Adjacent to the famous Sharjah Cricket Stadium. Great for practice and friendly matches.",
+            "images": [],
+            "amenities": ["Changing Rooms", "Practice Nets", "Parking", "Floodlights", "Refreshments"],
+            "rating": 4.5,
+            "total_bookings": 89,
+            "slots": [
+                {"id": "slot-2-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 1800, "is_available": True},
+                {"id": "slot-2-2", "date": "2025-01-15", "start_time": "09:00", "end_time": "12:00", "price": 1800, "is_available": True},
+                {"id": "slot-2-3", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 2000, "is_available": True},
+                {"id": "slot-2-4", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 1800, "is_available": True},
+            ],
+            "created_at": datetime.utcnow()
+        },
+        {
+            "id": "ground-3",
+            "owner_id": "system",
+            "name": "ICC Academy Ground",
+            "location": "ICC Academy, Dubai",
+            "type": "outdoor",
+            "turf_type": "natural",
+            "has_lighting": True,
+            "has_parking": True,
+            "price_per_hour": 1000,
+            "description": "Premium cricket facility used by international teams for practice. Top-notch amenities.",
+            "images": [],
+            "amenities": ["Changing Rooms", "Gym", "Swimming Pool", "Practice Nets", "Video Analysis", "Coaching"],
+            "rating": 4.9,
+            "total_bookings": 234,
+            "slots": [
+                {"id": "slot-3-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 3000, "is_available": True},
+                {"id": "slot-3-2", "date": "2025-01-15", "start_time": "16:00", "end_time": "19:00", "price": 3500, "is_available": True},
+                {"id": "slot-3-3", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 3000, "is_available": True},
+            ],
+            "created_at": datetime.utcnow()
+        },
+        {
+            "id": "ground-4",
+            "owner_id": "system",
+            "name": "Al Ain Cricket Ground",
+            "location": "Al Ain, Abu Dhabi",
+            "type": "outdoor",
+            "turf_type": "matting",
+            "has_lighting": False,
+            "has_parking": True,
+            "price_per_hour": 400,
+            "description": "Budget-friendly cricket ground perfect for weekend matches and practice sessions.",
+            "images": [],
+            "amenities": ["Parking", "Basic Changing Area", "Scoreboard"],
+            "rating": 4.0,
+            "total_bookings": 45,
+            "slots": [
+                {"id": "slot-4-1", "date": "2025-01-15", "start_time": "06:00", "end_time": "09:00", "price": 1200, "is_available": True},
+                {"id": "slot-4-2", "date": "2025-01-15", "start_time": "09:00", "end_time": "12:00", "price": 1200, "is_available": True},
+                {"id": "slot-4-3", "date": "2025-01-16", "start_time": "06:00", "end_time": "09:00", "price": 1200, "is_available": True},
+            ],
+            "created_at": datetime.utcnow()
+        },
+        {
+            "id": "ground-5",
+            "owner_id": "system",
+            "name": "Cricket World Indoor",
+            "location": "Al Quoz, Dubai",
+            "type": "indoor",
+            "turf_type": "artificial",
+            "has_lighting": True,
+            "has_parking": True,
+            "price_per_hour": 500,
+            "description": "Climate-controlled indoor cricket facility. Perfect for nets and T10 matches.",
+            "images": [],
+            "amenities": ["Air Conditioning", "Bowling Machine", "Video Recording", "Cafe", "Parking"],
+            "rating": 4.6,
+            "total_bookings": 178,
+            "slots": [
+                {"id": "slot-5-1", "date": "2025-01-15", "start_time": "10:00", "end_time": "12:00", "price": 1000, "is_available": True},
+                {"id": "slot-5-2", "date": "2025-01-15", "start_time": "14:00", "end_time": "16:00", "price": 1000, "is_available": True},
+                {"id": "slot-5-3", "date": "2025-01-15", "start_time": "18:00", "end_time": "20:00", "price": 1200, "is_available": True},
+                {"id": "slot-5-4", "date": "2025-01-15", "start_time": "20:00", "end_time": "22:00", "price": 1200, "is_available": True},
+                {"id": "slot-5-5", "date": "2025-01-16", "start_time": "10:00", "end_time": "12:00", "price": 1000, "is_available": True},
+            ],
+            "created_at": datetime.utcnow()
+        },
+    ]
+    
+    # Clear existing grounds and insert new ones
+    await db.grounds.delete_many({})
+    await db.grounds.insert_many(grounds_data)
+    
+    return {
+        "message": "Seed data created successfully",
+        "grounds_created": len(grounds_data),
+    }
+
 # Include router
 app.include_router(api_router)
 
