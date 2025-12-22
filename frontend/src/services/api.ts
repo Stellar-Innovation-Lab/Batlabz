@@ -1,0 +1,110 @@
+import axios, { AxiosError, AxiosInstance } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+const api: AxiosInstance = axios.create({
+  baseURL: `${API_URL}/api`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  async (config) => {
+    const token = await AsyncStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      // Token expired, clear storage
+      AsyncStorage.removeItem('auth_token');
+      AsyncStorage.removeItem('user');
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+
+// Auth APIs
+export const authAPI = {
+  requestOTP: (phone: string) => api.post('/auth/request-otp', { phone }),
+  verifyOTP: (phone: string, otp: string) => api.post('/auth/verify-otp', { phone, otp }),
+};
+
+// User APIs
+export const userAPI = {
+  getMe: () => api.get('/users/me'),
+  updateMe: (data: any) => api.put('/users/me', data),
+  completeProfile: (data: any) => api.post('/users/complete-profile', data),
+  getUser: (userId: string) => api.get(`/users/${userId}`),
+  searchUsers: (query: string) => api.get(`/users/search/${query}`),
+};
+
+// Team APIs
+export const teamAPI = {
+  create: (data: any) => api.post('/teams', data),
+  getMyTeams: () => api.get('/teams'),
+  getTeam: (teamId: string) => api.get(`/teams/${teamId}`),
+  updateTeam: (teamId: string, data: any) => api.put(`/teams/${teamId}`, data),
+  joinByCode: (inviteCode: string) => api.post(`/teams/join/${inviteCode}`),
+  getPlayers: (teamId: string) => api.get(`/teams/${teamId}/players`),
+  removePlayer: (teamId: string, playerId: string) => api.delete(`/teams/${teamId}/players/${playerId}`),
+};
+
+// Match APIs
+export const matchAPI = {
+  create: (teamId: string, data: any) => api.post(`/matches?team_id=${teamId}`, data),
+  getMyMatches: () => api.get('/matches'),
+  getTeamMatches: (teamId: string) => api.get(`/matches/team/${teamId}`),
+  getMatch: (matchId: string) => api.get(`/matches/${matchId}`),
+  updateMatch: (matchId: string, data: any) => api.put(`/matches/${matchId}`, data),
+  invitePlayers: (matchId: string, playerIds: string[]) => api.post(`/matches/${matchId}/invite`, playerIds),
+  respond: (matchId: string, response: string) => api.post(`/matches/${matchId}/respond`, { response }),
+  calculateFees: (matchId: string) => api.post(`/matches/${matchId}/calculate-fees`),
+};
+
+// Wallet APIs
+export const walletAPI = {
+  getBalance: () => api.get('/wallet/balance'),
+  getTransactions: () => api.get('/wallet/transactions'),
+  topup: (amount: number, paymentMethod: string) => api.post('/wallet/topup', { amount, payment_method: paymentMethod }),
+  payMatch: (matchId: string, useWallet: boolean, amount?: number) => 
+    api.post('/wallet/pay-match', { match_id: matchId, use_wallet: useWallet, amount }),
+};
+
+// Ground APIs
+export const groundAPI = {
+  create: (data: any) => api.post('/grounds', data),
+  getAll: (params?: any) => api.get('/grounds', { params }),
+  getGround: (groundId: string) => api.get(`/grounds/${groundId}`),
+  addSlots: (groundId: string, slots: any[]) => api.post(`/grounds/${groundId}/slots`, slots),
+  bookSlot: (groundId: string, slotId: string, matchId?: string) => 
+    api.post('/grounds/book', { ground_id: groundId, slot_id: slotId, match_id: matchId }),
+  getMyGrounds: () => api.get('/grounds/my-grounds'),
+};
+
+// Notification APIs
+export const notificationAPI = {
+  getAll: () => api.get('/notifications'),
+  markRead: (notificationId: string) => api.put(`/notifications/${notificationId}/read`),
+  markAllRead: () => api.put('/notifications/read-all'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+};
+
+// Dashboard APIs
+export const dashboardAPI = {
+  getPlayerDashboard: () => api.get('/dashboard/player'),
+  getCaptainDashboard: (teamId: string) => api.get(`/dashboard/captain/${teamId}`),
+};
