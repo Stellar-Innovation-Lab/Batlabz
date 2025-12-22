@@ -67,7 +67,7 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Hello, {user?.name || 'Player'}</Text>
           <Text style={styles.subGreeting}>Ready to play?</Text>
         </View>
-        <TouchableOpacity style={styles.notifButton}>
+        <TouchableOpacity style={styles.notifButton} onPress={() => router.push('/notifications')}>
           <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
