@@ -70,6 +70,19 @@ export const teamAPI = {
   joinByCode: (inviteCode: string) => api.post(`/teams/join/${inviteCode}`),
   getPlayers: (teamId: string) => api.get(`/teams/${teamId}/players`),
   removePlayer: (teamId: string, playerId: string) => api.delete(`/teams/${teamId}/players/${playerId}`),
+  blockPlayer: (teamId: string, playerId: string) => api.post(`/teams/${teamId}/block/${playerId}`),
+  // Announcements
+  createAnnouncement: (teamId: string, title: string, message: string) => 
+    api.post(`/teams/${teamId}/announcements?title=${encodeURIComponent(title)}&message=${encodeURIComponent(message)}`),
+  getAnnouncements: (teamId: string) => api.get(`/teams/${teamId}/announcements`),
+  // Messages/Chat
+  sendMessage: (teamId: string, message: string, matchId?: string) => 
+    api.post(`/teams/${teamId}/messages?message=${encodeURIComponent(message)}${matchId ? `&match_id=${matchId}` : ''}`),
+  getMessages: (teamId: string, matchId?: string) => 
+    api.get(`/teams/${teamId}/messages${matchId ? `?match_id=${matchId}` : ''}`),
+  // Pool
+  managePool: (teamId: string, amount: number, action: 'deposit' | 'withdraw') =>
+    api.post(`/teams/${teamId}/pool`, { team_id: teamId, amount, action }),
 };
 
 // Match APIs
