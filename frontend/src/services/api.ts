@@ -95,6 +95,15 @@ export const matchAPI = {
   invitePlayers: (matchId: string, playerIds: string[]) => api.post(`/matches/${matchId}/invite`, playerIds),
   respond: (matchId: string, response: string) => api.post(`/matches/${matchId}/respond`, { response }),
   calculateFees: (matchId: string) => api.post(`/matches/${matchId}/calculate-fees`),
+  addExpense: (matchId: string, description: string, amount: number) => 
+    api.post(`/matches/${matchId}/add-expense`, { description, amount }),
+  complete: (matchId: string) => api.post(`/matches/${matchId}/complete`),
+  cancel: (matchId: string) => api.post(`/matches/${matchId}/cancel`),
+  getSummary: (matchId: string) => api.get(`/matches/${matchId}/summary`),
+  // Ride coordination
+  updateRide: (matchId: string, status: string, seats?: number, pickupLocation?: string) =>
+    api.post(`/matches/${matchId}/ride`, { match_id: matchId, status, seats_available: seats, pickup_location: pickupLocation }),
+  getRides: (matchId: string) => api.get(`/matches/${matchId}/rides`),
 };
 
 // Wallet APIs
