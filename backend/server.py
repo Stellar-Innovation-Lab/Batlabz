@@ -1074,7 +1074,10 @@ async def get_player_dashboard(current_user: User = Depends(get_current_user)):
     
     # Past matches
     past = await db.matches.find({
-        "confirmed_player_ids": current_user.id,
+        "$or": [
+            {"confirmed_player_ids": current_user.id},
+            {"captain_id": current_user.id}
+        ],
         "status": MatchStatus.COMPLETED
     }).sort("date", -1).to_list(10)
     
