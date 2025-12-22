@@ -144,4 +144,33 @@ export const notificationAPI = {
 export const dashboardAPI = {
   getPlayerDashboard: () => api.get('/dashboard/player'),
   getCaptainDashboard: (teamId: string) => api.get(`/dashboard/captain/${teamId}`),
+  getGroundOwnerDashboard: () => api.get('/dashboard/ground-owner'),
+  getAdminDashboard: () => api.get('/dashboard/admin'),
+};
+
+// Wallet APIs (Extended)
+export const walletExtendedAPI = {
+  exportTransactions: (startDate?: string, endDate?: string) => {
+    let url = '/wallet/export';
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const queryString = params.toString();
+    return api.get(queryString ? `${url}?${queryString}` : url);
+  },
+};
+
+// Admin APIs
+export const adminAPI = {
+  getUsers: (skip?: number, limit?: number) => 
+    api.get(`/admin/users?skip=${skip || 0}&limit=${limit || 50}`),
+  updateUserRole: (userId: string, role: string) => 
+    api.put(`/admin/users/${userId}/role?role=${role}`),
+  getTransactions: (skip?: number, limit?: number) => 
+    api.get(`/admin/transactions?skip=${skip || 0}&limit=${limit || 50}`),
+};
+
+// Seed API (for testing)
+export const seedAPI = {
+  seedData: () => api.post('/seed'),
 };
