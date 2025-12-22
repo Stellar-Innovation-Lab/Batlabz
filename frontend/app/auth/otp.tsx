@@ -68,12 +68,8 @@ export default function OTPScreen() {
       const response = await authAPI.verifyOTP(phone, otpString);
       const { access_token, user_id, is_new_user } = response.data;
       
-      // Store token first in AsyncStorage for API calls
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      await AsyncStorage.setItem('auth_token', access_token);
-      
-      // Now fetch user data (token will be available via interceptor)
-      const userResponse = await userAPI.getMe();
+      // Fetch user data with the token directly
+      const userResponse = await getMeWithToken(access_token);
       const userData = { ...userResponse.data };
       
       await login(access_token, userData);
