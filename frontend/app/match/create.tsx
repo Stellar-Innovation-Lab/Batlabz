@@ -23,8 +23,7 @@ export default function CreateMatchScreen() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string>(teamId || '');
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [matchDate, setMatchDate] = useState(new Date());
   const [location, setLocation] = useState('');
   const [format, setFormat] = useState<MatchFormat>(MatchFormat.T20);
   const [playerLimit, setPlayerLimit] = useState('22');
@@ -38,15 +37,24 @@ export default function CreateMatchScreen() {
   const [fetchingTeams, setFetchingTeams] = useState(true);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
+  
+  // Date/Time picker states
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState<'date' | 'time'>('date');
 
   useEffect(() => {
     fetchTeams();
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    setMatchDate(tomorrow);
   }, []);
 
   const fetchTeams = async () => {
     try {
       const response = await teamAPI.getMyTeams();
-      // Filter teams where user is captain
       const captainTeams = response.data.filter((t: Team) => t.captain_id);
       setTeams(captainTeams);
       if (captainTeams.length > 0 && !selectedTeam) {
@@ -59,6 +67,51 @@ export default function CreateMatchScreen() {
     }
   };
 
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      setShowTimePicker(false);
+    }
+    if (selectedDate) {
+      if (datePickerMode === 'date') {
+        const newDate = new Date(selectedDate);
+        newDate.setHours(matchDate.getHours(), matchDate.getMinutes());
+        setMatchDate(newDate);
+      } else {
+        const newDate = new Date(matchDate);
+        newDate.setHours(selectedDate.getHours(), selectedDate.getMinutes());
+        setMatchDate(newDate);
+      }
+    }
+  };
+
+  const showDateSelector = () => {
+    setDatePickerMode('date');
+    setShowDatePicker(true);
+  };
+
+  const showTimeSelector = () => {
+    setDatePickerMode('time');
+    setShowTimePicker(true);
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   const handleCreate = async () => {
     if (!selectedTeam) {
       setError('Please select a team');
@@ -66,10 +119,6 @@ export default function CreateMatchScreen() {
     }
     if (!title.trim()) {
       setError('Please enter a match title');
-      return;
-    }
-    if (!date || !time) {
-      setError('Please enter date and time');
       return;
     }
     if (!location.trim()) {
@@ -81,11 +130,6 @@ export default function CreateMatchScreen() {
     setLoading(true);
 
     try {
-      // Parse date and time
-      const [year, month, day] = date.split('-').map(Number);
-      const [hours, minutes] = time.split(':').map(Number);
-      const matchDate = new Date(year, month - 1, day, hours, minutes);
-
       const response = await matchAPI.create(selectedTeam, {
         title: title.trim(),
         date: matchDate.toISOString(),
@@ -101,6 +145,7 @@ export default function CreateMatchScreen() {
         },
       });
 
+      Alert.alert('Success', 'Match created successfully!');
       router.replace(`/match/${response.data.id}`);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to create match');
@@ -156,30 +201,42 @@ export default function CreateMatchScreen() {
               <Text style={styles.stepTitle}>Basic Information</Text>
               
               <Text style={styles.label}>Select Team</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.teamScroll}>
-                {teams.map((team) => (
-                  <TouchableOpacity
-                    key={team.id}
-                    style={[
-                      styles.teamChip,
-                      selectedTeam === team.id && styles.teamChipSelected,
-                    ]}
-                    onPress={() => setSelectedTeam(team.id)}
-                  >
-                    <Ionicons 
-                      name="people" 
-                      size={20} 
-                      color={selectedTeam === team.id ? COLORS.primary : COLORS.textMuted} 
-                    />
-                    <Text style={[
-                      styles.teamChipText,
-                      selectedTeam === team.id && styles.teamChipTextSelected,
-                    ]}>
-                      {team.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              {teams.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.teamScroll}>
+                  {teams.map((team) => (
+                    <TouchableOpacity
+                      key={team.id}
+                      style={[
+                        styles.teamChip,
+                        selectedTeam === team.id && styles.teamChipSelected,
+                      ]}
+                      onPress={() => setSelectedTeam(team.id)}
+                    >
+                      <Ionicons 
+                        name="people" 
+                        size={20} 
+                        color={selectedTeam === team.id ? COLORS.primary : COLORS.textMuted} 
+                      />
+                      <Text style={[
+                        styles.teamChipText,
+                        selectedTeam === team.id && styles.teamChipTextSelected,
+                      ]}>
+                        {team.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Card style={styles.noTeamCard}>
+                  <Text style={styles.noTeamText}>You need to create a team first</Text>
+                  <Button 
+                    title="Create Team" 
+                    onPress={() => router.push('/team/create')} 
+                    variant="outline"
+                    size="sm"
+                  />
+                </Card>
+              )}
 
               <Input
                 label="Match Title"
@@ -188,24 +245,41 @@ export default function CreateMatchScreen() {
                 onChangeText={setTitle}
               />
 
-              <View style={styles.row}>
-                <View style={styles.halfInput}>
-                  <Input
-                    label="Date"
-                    placeholder="YYYY-MM-DD"
-                    value={date}
-                    onChangeText={setDate}
-                  />
-                </View>
-                <View style={styles.halfInput}>
-                  <Input
-                    label="Time"
-                    placeholder="HH:MM"
-                    value={time}
-                    onChangeText={setTime}
-                  />
-                </View>
-              </View>
+              {/* Date Picker */}
+              <Text style={styles.label}>Date</Text>
+              <TouchableOpacity style={styles.dateTimeButton} onPress={showDateSelector}>
+                <Ionicons name="calendar" size={20} color={COLORS.primary} />
+                <Text style={styles.dateTimeText}>{formatDate(matchDate)}</Text>
+                <Ionicons name="chevron-down" size={16} color={COLORS.textMuted} />
+              </TouchableOpacity>
+
+              {/* Time Picker */}
+              <Text style={styles.label}>Time</Text>
+              <TouchableOpacity style={styles.dateTimeButton} onPress={showTimeSelector}>
+                <Ionicons name="time" size={20} color={COLORS.primary} />
+                <Text style={styles.dateTimeText}>{formatTime(matchDate)}</Text>
+                <Ionicons name="chevron-down" size={16} color={COLORS.textMuted} />
+              </TouchableOpacity>
+
+              {/* Date/Time Pickers */}
+              {(showDatePicker || showTimePicker) && (
+                <DateTimePicker
+                  value={matchDate}
+                  mode={datePickerMode}
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                  minimumDate={new Date()}
+                />
+              )}
+
+              {Platform.OS === 'ios' && (showDatePicker || showTimePicker) && (
+                <Button
+                  title="Done"
+                  onPress={() => { setShowDatePicker(false); setShowTimePicker(false); }}
+                  variant="ghost"
+                  size="sm"
+                />
+              )}
 
               <Input
                 label="Location"
@@ -219,7 +293,7 @@ export default function CreateMatchScreen() {
                 onPress={() => setStep(2)}
                 fullWidth
                 size="lg"
-                disabled={!selectedTeam || !title || !date || !time || !location}
+                disabled={!selectedTeam || !title || !location}
               />
             </View>
           )}
@@ -427,6 +501,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xxl * 2,
   },
   stepTitle: {
     fontSize: FONT_SIZES.xl,
@@ -439,6 +514,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.text,
     marginBottom: SPACING.sm,
+    marginTop: SPACING.md,
   },
   teamScroll: {
     marginBottom: SPACING.lg,
@@ -467,12 +543,30 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
-  row: {
-    flexDirection: 'row',
-    gap: SPACING.md,
+  noTeamCard: {
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+    marginBottom: SPACING.md,
   },
-  halfInput: {
+  noTeamText: {
+    color: COLORS.textMuted,
+    marginBottom: SPACING.md,
+  },
+  dateTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  dateTimeText: {
     flex: 1,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
   },
   formatGrid: {
     flexDirection: 'row',
@@ -524,7 +618,6 @@ const styles = StyleSheet.create({
   },
   totalCard: {
     backgroundColor: COLORS.primary + '15',
-    borderColor: COLORS.primary + '30',
     marginBottom: SPACING.lg,
   },
   totalRow: {
