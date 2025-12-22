@@ -153,6 +153,24 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
+        {/* Role-Specific Menu Items */}
+        {roleMenuItems.length > 0 && (
+          <View style={styles.menuSection}>
+            {roleMenuItems.map((item, index) => (
+              <TouchableOpacity key={`role-${index}`} style={styles.menuItem} onPress={item.onPress}>
+                <View style={[styles.menuIcon, { backgroundColor: COLORS.primary + '20' }]}>
+                  <Ionicons name={item.icon as any} size={24} color={COLORS.primary} />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={styles.menuTitle}>{item.title}</Text>
+                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Menu Items */}
         <View style={styles.menuSection}>
           {menuItems.map((item, index) => (
