@@ -32,7 +32,6 @@ export default function RootLayout() {
         <Stack.Screen name="match/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="match/create" options={{ presentation: 'modal' }} />
         <Stack.Screen name="wallet/topup" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="ground/[id]" options={{ presentation: 'card' }} />
       </Stack>
     </>
   );
