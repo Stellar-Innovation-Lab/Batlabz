@@ -52,6 +52,13 @@ export const authAPI = {
   verifyOTP: (phone: string, otp: string) => api.post('/auth/verify-otp', { phone, otp }),
 };
 
+// Notification APIs
+export const notificationAPI = {
+  getAll: () => api.get('/notifications'),
+  markRead: (notificationId: string) => api.post(`/notifications/${notificationId}/read`),
+  markAllRead: () => api.post('/notifications/read-all'),
+};
+
 // User APIs
 export const userAPI = {
   getMe: () => api.get('/users/me'),
