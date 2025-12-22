@@ -702,7 +702,10 @@ async def create_match(match_data: MatchCreate, team_id: str, current_user: User
     if team_data["captain_id"] != current_user.id:
         raise HTTPException(status_code=403, detail="Only captain can create matches")
     
-    match = Match(**match_data.dict(), team_id=team_id, captain_id=current_user.id, captain_discount=match_data.captain_discount, guest_surcharge=match_data.guest_surcharge)
+    match_dict = match_data.dict()
+    match_dict["team_id"] = team_id
+    match_dict["captain_id"] = current_user.id
+    match = Match(**match_dict)
     await db.matches.insert_one(match.dict())
     return match
 
