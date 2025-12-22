@@ -1,82 +1,166 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Dimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../src/components/theme';
-import { Button, Input } from '../../src/components';
+import { PremiumBackground, StadiumLights } from '../../src/components/CricketBackgrounds';
+import { PremiumButton } from '../../src/components/PremiumUI';
 import { authAPI } from '../../src/services/api';
+
+const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
+  const formatPhone = (text: string) => {
+    // Remove non-digits
+    const cleaned = text.replace(/\D/g, '');
+    // Format as UAE number
+    if (cleaned.length <= 3) return cleaned;
+    if (cleaned.length <= 6) return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 10)}`;
+  };
+
+  const handlePhoneChange = (text: string) => {
+    const formatted = formatPhone(text);
+    setPhone(formatted);
+    setError('');
+  };
 
   const handleContinue = async () => {
-    if (!phone || phone.length < 9) {
+    const cleanPhone = phone.replace(/\D/g, '');
+    
+    if (cleanPhone.length < 9) {
       setError('Please enter a valid phone number');
       return;
     }
 
-    setError('');
     setLoading(true);
+    setError('');
 
     try {
-      await authAPI.requestOTP(phone);
-      router.push({ pathname: '/auth/otp', params: { phone } });
+      const fullPhone = cleanPhone.startsWith('971') ? `+${cleanPhone}` : `+971${cleanPhone}`;
+      await authAPI.requestOTP(fullPhone);
+      router.push({ 
+        pathname: '/auth/otp', 
+        params: { phone: fullPhone } 
+      });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to send OTP');
+      setError(err.response?.data?.detail || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <View style={styles.iconWrapper}>
-              <Ionicons name="baseball" size={50} color={COLORS.primary} />
+    <View style={styles.container}>
+      {/* Premium Background */}
+      <PremiumBackground variant="default" />
+      <StadiumLights intensity={0.2} />
+
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <View style={styles.content}>
+            {/* Logo Section */}
+            <View style={styles.logoSection}>
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.primaryDark]}
+                style={styles.logoContainer}
+              >
+                <Text style={styles.logoIcon}>🏏</Text>
+              </LinearGradient>
+              <Text style={styles.appName}>Batlabz</Text>
+              <Text style={styles.tagline}>Pay & Play Cricket</Text>
             </View>
-            <Text style={styles.title}>Welcome to Batlabz</Text>
-            <Text style={styles.subtitle}>Enter your phone number to continue</Text>
-          </View>
 
-          <View style={styles.form}>
-            <Input
-              label="Phone Number"
-              placeholder="+971 XX XXX XXXX"
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-              error={error}
-              leftIcon={<Ionicons name="call-outline" size={20} color={COLORS.textMuted} />}
-            />
+            {/* Welcome Text */}
+            <View style={styles.welcomeSection}>
+              <Text style={styles.welcomeTitle}>Welcome, Player!</Text>
+              <Text style={styles.welcomeText}>
+                Enter your phone number to get started with the ultimate cricket experience
+              </Text>
+            </View>
 
-            <Text style={styles.hint}>We'll send you a verification code via SMS</Text>
+            {/* Phone Input */}
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TouchableOpacity 
+                activeOpacity={1}
+                style={styles.inputContainer}
+                onPress={() => inputRef.current?.focus()}
+              >
+                <View style={styles.countryCode}>
+                  <Text style={styles.flag}>🇦🇪</Text>
+                  <Text style={styles.countryCodeText}>+971</Text>
+                </View>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  value={phone}
+                  onChangeText={handlePhoneChange}
+                  placeholder="50 123 4567"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="phone-pad"
+                  maxLength={12}
+                  autoFocus
+                />
+              </TouchableOpacity>
+              {error ? (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={16} color={COLORS.error} />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
+            </View>
 
-            <Button
+            {/* Continue Button */}
+            <PremiumButton
               title="Continue"
               onPress={handleContinue}
               loading={loading}
-              fullWidth
+              disabled={phone.replace(/\D/g, '').length < 9}
+              variant="primary"
               size="lg"
-              style={styles.button}
+              fullWidth
+              icon={<Ionicons name="arrow-forward" size={20} color={COLORS.text} />}
+              iconPosition="right"
             />
+
+            {/* Terms */}
+            <Text style={styles.terms}>
+              By continuing, you agree to our{' '}
+              <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
+              <Text style={styles.termsLink}>Privacy Policy</Text>
+            </Text>
           </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>By continuing, you agree to our</Text>
-            <Text style={styles.link}>Terms of Service & Privacy Policy</Text>
+          {/* Bottom Features */}
+          <View style={styles.featuresSection}>
+            <View style={styles.feature}>
+              <Ionicons name="calendar" size={24} color={COLORS.primary} />
+              <Text style={styles.featureText}>Schedule Matches</Text>
+            </View>
+            <View style={styles.feature}>
+              <Ionicons name="wallet" size={24} color={COLORS.gold} />
+              <Text style={styles.featureText}>Split Costs</Text>
+            </View>
+            <View style={styles.feature}>
+              <Ionicons name="location" size={24} color={COLORS.secondary} />
+              <Text style={styles.featureText}>Book Grounds</Text>
+            </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -85,62 +169,151 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  keyboardView: {
+  safeArea: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: SPACING.lg,
+  keyboardView: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: SPACING.xl,
     justifyContent: 'center',
   },
-  header: {
+
+  // Logo
+  logoSection: {
     alignItems: 'center',
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
   },
-  iconWrapper: {
+  logoContainer: {
     width: 100,
     height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.card,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.lg,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
+    marginBottom: SPACING.md,
   },
-  title: {
-    fontSize: FONT_SIZES.xxl,
+  logoIcon: {
+    fontSize: 50,
+  },
+  appName: {
+    fontSize: FONT_SIZES.hero,
     fontWeight: 'bold',
+    color: COLORS.text,
+    letterSpacing: 1,
+  },
+  tagline: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+
+  // Welcome
+  welcomeSection: {
+    marginBottom: SPACING.xl,
+    alignItems: 'center',
+  },
+  welcomeTitle: {
+    fontSize: FONT_SIZES.xxl,
+    fontWeight: '600',
     color: COLORS.text,
     marginBottom: SPACING.sm,
   },
-  subtitle: {
-    fontSize: FONT_SIZES.lg,
+  welcomeText: {
+    fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
     textAlign: 'center',
+    lineHeight: 22,
   },
-  form: {
-    marginBottom: SPACING.xl,
+
+  // Input
+  inputSection: {
+    marginBottom: SPACING.lg,
   },
-  hint: {
+  inputLabel: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardSolid,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  countryCode: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.glass,
+    borderRightWidth: 1,
+    borderRightColor: COLORS.border,
+  },
+  flag: {
+    fontSize: 20,
+    marginRight: SPACING.xs,
+  },
+  countryCodeText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  input: {
+    flex: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    fontSize: FONT_SIZES.xl,
+    color: COLORS.text,
+    letterSpacing: 1,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  errorText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.error,
+  },
+
+  // Terms
+  terms: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textMuted,
     textAlign: 'center',
-    marginBottom: SPACING.lg,
+    marginTop: SPACING.lg,
+    lineHeight: 20,
   },
-  button: {
-    marginTop: SPACING.md,
+  termsLink: {
+    color: COLORS.primary,
+    fontWeight: '500',
   },
-  footer: {
+
+  // Features
+  featuresSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  feature: {
     alignItems: 'center',
   },
-  footerText: {
-    fontSize: FONT_SIZES.sm,
+  featureText: {
+    fontSize: FONT_SIZES.xs,
     color: COLORS.textMuted,
-  },
-  link: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.primary,
     marginTop: SPACING.xs,
   },
 });
