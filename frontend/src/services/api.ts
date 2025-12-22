@@ -37,6 +37,15 @@ api.interceptors.response.use(
 
 export default api;
 
+// Helper to make authenticated request with specific token
+export const getMeWithToken = async (token: string) => {
+  return api.get('/users/me', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+};
+
 // Auth APIs
 export const authAPI = {
   requestOTP: (phone: string) => api.post('/auth/request-otp', { phone }),
