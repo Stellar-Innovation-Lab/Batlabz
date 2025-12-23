@@ -510,6 +510,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // AI Banner
+  aiBanner: {
+    marginBottom: SPACING.lg,
+  },
+  aiBannerGradient: {
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+  },
+  aiBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  aiBannerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  aiBannerText: {
+    flex: 1,
+  },
+  aiBannerTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  aiBannerSubtitle: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+
   // Activity
   activityCard: {
     marginBottom: SPACING.sm,
