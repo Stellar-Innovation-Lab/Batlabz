@@ -1555,11 +1555,11 @@ async def seed_demo_data():
             "per_player_cost": 400,  # 2400 / 6 players
             "cost_breakdown": {"ground_fee": 2400, "umpire_fee": 0, "balls_equip": 0, "refreshments": 0, "miscellaneous": 0},
             "player_payments": [
-                {"user_id": "demo-captain-1", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
-                {"user_id": "demo-player-2", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
-                {"user_id": "demo-player-3", "amount_due": 400, "amount_paid": 200, "status": "partial", "paid_at": None},
-                {"user_id": "demo-player-4", "amount_due": 400, "amount_paid": 0, "status": "pending", "paid_at": None},
-                {"user_id": "demo-player-5", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
+                {"user_id": "demo-captain-1", "user_name": "Ahmed Khan", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
+                {"user_id": "demo-player-2", "user_name": "Ravi Sharma", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
+                {"user_id": "demo-player-3", "user_name": "Faisal Ali", "amount_due": 400, "amount_paid": 200, "status": "partial", "paid_at": None},
+                {"user_id": "demo-player-4", "user_name": "Mohammed Rashid", "amount_due": 400, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-player-5", "user_name": "Amit Patel", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
             ],
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
@@ -1582,10 +1582,10 @@ async def seed_demo_data():
             "per_player_cost": 450,
             "cost_breakdown": {"ground_fee": 1800},
             "player_payments": [
-                {"user_id": "demo-captain-1", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
-                {"user_id": "demo-player-2", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
-                {"user_id": "demo-player-3", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
-                {"user_id": "demo-player-4", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
+                {"user_id": "demo-captain-1", "user_name": "Ahmed Khan", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
+                {"user_id": "demo-player-2", "user_name": "Ravi Sharma", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
+                {"user_id": "demo-player-3", "user_name": "Faisal Ali", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
+                {"user_id": "demo-player-4", "user_name": "Mohammed Rashid", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
             ],
             "created_at": past_match_date,
             "updated_at": past_match_date
