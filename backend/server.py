@@ -301,6 +301,9 @@ class TeamPoolRequest(BaseModel):
     amount: float
     action: str  # "deposit" or "withdraw"
 
+class WithdrawRequest(BaseModel):
+    amount: float
+
 # Ground Models
 class GroundSlot(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
