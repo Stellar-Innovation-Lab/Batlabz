@@ -101,3 +101,305 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Build Batlabz - a pay & play cricket platform for UAE amateur cricket teams.
+  Features: Match scheduling, fee splitting, payments, ground booking, transport coordination.
+  Recent enhancement: Implement complete transactional ground booking system, AI-driven matchmaking,
+  player impact scoring, team vs team prediction, captain's financial dashboard with real-time 
+  payment tracking, wallet protection with audit logging.
+
+backend:
+  - task: "Authentication (OTP request/verify)"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Auth endpoints exist, need testing"
+
+  - task: "User CRUD operations"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "User endpoints exist"
+
+  - task: "Team management"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Team create/join/players/announcements/messages endpoints exist"
+
+  - task: "Match CRUD and invites"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Full match lifecycle endpoints exist"
+
+  - task: "Match fee calculation and payments"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Calculate fees, pay-match endpoints exist"
+
+  - task: "Wallet topup and transactions"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Topup, transactions, export endpoints exist"
+
+  - task: "Ground CRUD and slots"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Ground management endpoints exist"
+
+  - task: "Ground booking and cancellation"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Book slot, cancel booking, linked ground booking for matches"
+
+  - task: "Safe wallet operations (audit logged)"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New safe_wallet_credit/debit functions with idempotency and audit logging"
+
+  - task: "AI matchmaking"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "/ai/matchmaking endpoint exists"
+
+  - task: "AI match prediction"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "/ai/predict-match endpoint exists"
+
+  - task: "AI player recommendations"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "/ai/player-recommendations endpoint exists"
+
+  - task: "Player stats tracking"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "/players/{user_id}/stats, /my-stats endpoints exist"
+
+  - task: "Captain financial dashboard"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "/captain/financial-summary and /captain/match-financials endpoints"
+
+  - task: "Team wallet withdrawal"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "/team/{team_id}/wallet/withdraw endpoint with audit logging"
+
+  - task: "Wallet ledger"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "/wallet/ledger endpoint exists"
+
+  - task: "Audit log endpoints"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "/audit/transactions/{user_id} endpoint exists"
+
+  - task: "Dashboard endpoints"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Player, captain, ground-owner, admin dashboards exist"
+
+  - task: "Notifications system"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Notification CRUD and mark-read endpoints"
+
+frontend:
+  - task: "Login/OTP screens"
+    implemented: true
+    working: "NA"
+    file: "app/auth/login.tsx, app/auth/otp.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Premium UI implemented"
+
+  - task: "Home screen"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Premium UI with dashboard"
+
+metadata:
+  created_by: "main_agent"
+  version: "2.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Authentication (OTP request/verify)"
+    - "User CRUD operations"
+    - "Wallet topup and transactions"
+    - "Ground booking and cancellation"
+    - "Safe wallet operations (audit logged)"
+    - "Captain financial dashboard"
+    - "AI matchmaking"
+    - "AI match prediction"
+    - "AI player recommendations"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Backend has extensive new features implemented:
+      1. Safe wallet operations with idempotency keys and audit logging
+      2. AI matchmaking, prediction, player recommendations
+      3. Captain financial dashboard with real-time payment tracking
+      4. Team wallet withdrawal with audit trails
+      5. Ground booking linked to match creation
+      6. Wallet ledger for detailed transaction history
+      
+      Please test ALL backend endpoints thoroughly, especially:
+      - Auth flow (OTP)
+      - Wallet operations (topup, pay, ledger)
+      - Ground booking flow (book slot, cancel with refund)
+      - Match creation and fee calculation
+      - AI endpoints (may return empty but should not error)
+      - Captain dashboard endpoints
+      - Audit log endpoints
