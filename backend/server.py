@@ -1390,13 +1390,42 @@ async def get_admin_dashboard(current_user: User = Depends(require_admin)):
     completed_matches = await db.matches.count_documents({"status": MatchStatus.COMPLETED})
     
     transactions = await db.wallet_transactions.find({}).to_list(1000)
-    total_transaction_volume = sum(abs(t["amount"]) for t in transactions)
+    total_transaction_volume = sum(abs(t.get("amount", 0)) for t in transactions)
     
     grounds = await db.grounds.find({}).to_list(100)
     total_ground_earnings = sum(g.get("total_earnings", 0) for g in grounds)
     
     recent_users = await db.users.find({}).sort("created_at", -1).to_list(10)
     recent_matches = await db.matches.find({}).sort("created_at", -1).to_list(10)
+    
+    # Safely convert users
+    safe_users = []
+    for u in recent_users:
+        try:
+            safe_users.append({
+                "id": u.get("id"),
+                "name": u.get("name", "Unknown"),
+                "phone": u.get("phone"),
+                "role": u.get("role", "player"),
+                "created_at": u.get("created_at")
+            })
+        except:
+            pass
+    
+    # Safely convert matches
+    safe_matches = []
+    for m in recent_matches:
+        try:
+            safe_matches.append({
+                "id": m.get("id"),
+                "title": m.get("title"),
+                "date": m.get("date"),
+                "status": m.get("status"),
+                "team_id": m.get("team_id"),
+                "total_cost": m.get("total_cost", 0)
+            })
+        except:
+            pass
     
     return {
         "total_users": total_users,
@@ -1406,8 +1435,8 @@ async def get_admin_dashboard(current_user: User = Depends(require_admin)):
         "total_grounds": total_grounds,
         "total_transaction_volume": total_transaction_volume,
         "total_ground_earnings": total_ground_earnings,
-        "recent_users": [User(**u) for u in recent_users],
-        "recent_matches": [Match(**m) for m in recent_matches]
+        "recent_users": safe_users,
+        "recent_matches": safe_matches
     }
 
 # ==================== ADMIN ROUTES ====================
