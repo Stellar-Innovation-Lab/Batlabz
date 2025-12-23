@@ -188,6 +188,33 @@ export default function HomeScreen() {
             </View>
           </View>
 
+          {/* AI Features Banner */}
+          <TouchableOpacity 
+            activeOpacity={0.9} 
+            onPress={() => router.push('/ai')}
+            style={styles.aiBanner}
+          >
+            <LinearGradient
+              colors={['rgba(0, 200, 83, 0.2)', 'rgba(255, 215, 0, 0.15)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.aiBannerGradient}
+            >
+              <View style={styles.aiBannerContent}>
+                <View style={styles.aiBannerIcon}>
+                  <Ionicons name="sparkles" size={24} color={COLORS.primary} />
+                </View>
+                <View style={styles.aiBannerText}>
+                  <Text style={styles.aiBannerTitle}>AI-Powered Features</Text>
+                  <Text style={styles.aiBannerSubtitle}>
+                    Find opponents • Predict matches • Scout players
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
           {/* Upcoming Matches */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
