@@ -169,6 +169,43 @@ export const adminAPI = {
     api.get(`/admin/transactions?skip=${skip || 0}&limit=${limit || 50}`),
 };
 
+// AI & Analytics APIs
+export const aiAPI = {
+  findOpponents: (teamId: string, format?: string, skillRange?: string) => 
+    api.post('/ai/matchmaking', { team_id: teamId, format: format || 'T20', skill_range: skillRange || 'similar' }),
+  predictMatch: (team1Id: string, team2Id: string, format?: string, groundId?: string) =>
+    api.post('/ai/predict-match', { team1_id: team1Id, team2_id: team2Id, format: format || 'T20', ground_id: groundId }),
+  getPlayerRecommendations: (teamId: string) =>
+    api.get(`/ai/player-recommendations/${teamId}`),
+};
+
+// Player Stats APIs
+export const statsAPI = {
+  getPlayerStats: (userId: string) => api.get(`/players/${userId}/stats`),
+  getMyStats: () => api.get('/my-stats'),
+};
+
+// Captain Financial APIs
+export const captainAPI = {
+  getFinancialSummary: (teamId: string) => api.get(`/captain/financial-summary/${teamId}`),
+  getMatchFinancials: (matchId: string) => api.get(`/captain/match-financials/${matchId}`),
+  withdrawFromTeamWallet: (teamId: string, amount: number) => 
+    api.post(`/team/${teamId}/wallet/withdraw?amount=${amount}`),
+};
+
+// Audit & Ledger APIs
+export const auditAPI = {
+  getUserAuditLog: (userId: string) => api.get(`/audit/transactions/${userId}`),
+  getWalletLedger: () => api.get('/wallet/ledger'),
+};
+
+// Enhanced Booking APIs
+export const bookingAPI = {
+  bookGroundForMatch: (matchId: string, groundId: string, slotId: string) =>
+    api.post(`/matches/${matchId}/book-ground?ground_id=${groundId}&slot_id=${slotId}`),
+  refundBooking: (bookingId: string) => api.post(`/bookings/${bookingId}/refund`),
+};
+
 // Seed API (for testing)
 export const seedAPI = {
   seedData: () => api.post('/seed'),
