@@ -1477,6 +1477,207 @@ async def seed_data():
     
     return {"message": "Seed data created", "grounds_created": len(grounds_data)}
 
+@api_router.post("/seed/demo")
+async def seed_demo_data():
+    """Create comprehensive demo data for testing all flows"""
+    from datetime import timedelta
+    
+    # Clear existing demo data
+    await db.users.delete_many({"phone": {"$regex": "^\\+97150"}})
+    await db.teams.delete_many({"name": {"$regex": "Demo"}})
+    await db.matches.delete_many({"title": {"$regex": "Demo"}})
+    
+    # ===================== DEMO USERS =====================
+    demo_users = [
+        {"id": "demo-captain-1", "phone": "+971501111111", "name": "Ahmed Khan (Captain)", "playing_role": "batsman", "preferred_locations": ["Dubai"], "wallet_balance": 5000, "role": "player", "is_profile_complete": True, "matches_played": 45, "total_spent": 4500, "created_at": datetime.utcnow()},
+        {"id": "demo-player-2", "phone": "+971502222222", "name": "Ravi Sharma", "playing_role": "bowler", "preferred_locations": ["Dubai"], "wallet_balance": 1500, "role": "player", "is_profile_complete": True, "matches_played": 32, "total_spent": 3200, "created_at": datetime.utcnow()},
+        {"id": "demo-player-3", "phone": "+971503333333", "name": "Faisal Ali", "playing_role": "all_rounder", "preferred_locations": ["Sharjah"], "wallet_balance": 2000, "role": "player", "is_profile_complete": True, "matches_played": 28, "total_spent": 2800, "created_at": datetime.utcnow()},
+        {"id": "demo-player-4", "phone": "+971504444444", "name": "Mohammed Rashid", "playing_role": "wicket_keeper", "preferred_locations": ["Dubai"], "wallet_balance": 800, "role": "player", "is_profile_complete": True, "matches_played": 22, "total_spent": 2200, "created_at": datetime.utcnow()},
+        {"id": "demo-player-5", "phone": "+971505555555", "name": "Amit Patel", "playing_role": "batsman", "preferred_locations": ["Abu Dhabi"], "wallet_balance": 3000, "role": "player", "is_profile_complete": True, "matches_played": 35, "total_spent": 3500, "created_at": datetime.utcnow()},
+        {"id": "demo-player-6", "phone": "+971506666666", "name": "Khalid Omar", "playing_role": "bowler", "preferred_locations": ["Dubai"], "wallet_balance": 1200, "role": "player", "is_profile_complete": True, "matches_played": 18, "total_spent": 1800, "created_at": datetime.utcnow()},
+        {"id": "demo-player-7", "phone": "+971507777777", "name": "Suresh Kumar", "playing_role": "all_rounder", "preferred_locations": ["Dubai"], "wallet_balance": 2500, "role": "player", "is_profile_complete": True, "matches_played": 40, "total_spent": 4000, "created_at": datetime.utcnow()},
+        {"id": "demo-player-8", "phone": "+971508888888", "name": "Hassan Malik", "playing_role": "batsman", "preferred_locations": ["Sharjah"], "wallet_balance": 500, "role": "player", "is_profile_complete": True, "matches_played": 15, "total_spent": 1500, "created_at": datetime.utcnow()},
+        {"id": "demo-captain-2", "phone": "+971509999999", "name": "Imran Sheikh (Captain)", "playing_role": "all_rounder", "preferred_locations": ["Dubai"], "wallet_balance": 4000, "role": "player", "is_profile_complete": True, "matches_played": 50, "total_spent": 5000, "created_at": datetime.utcnow()},
+        {"id": "demo-player-10", "phone": "+971500000001", "name": "Vikram Singh", "playing_role": "bowler", "preferred_locations": ["Dubai"], "wallet_balance": 1800, "role": "player", "is_profile_complete": True, "matches_played": 25, "total_spent": 2500, "created_at": datetime.utcnow()},
+        {"id": "demo-player-11", "phone": "+971500000002", "name": "Omar Farooq", "playing_role": "batsman", "preferred_locations": ["Abu Dhabi"], "wallet_balance": 2200, "role": "player", "is_profile_complete": True, "matches_played": 30, "total_spent": 3000, "created_at": datetime.utcnow()},
+    ]
+    
+    for user in demo_users:
+        await db.users.insert_one(user)
+    
+    # ===================== DEMO TEAMS =====================
+    demo_teams = [
+        {
+            "id": "demo-team-1",
+            "name": "Demo Dubai Warriors",
+            "captain_id": "demo-captain-1",
+            "home_location": "Dubai",
+            "invite_code": "DEMOWAR123",
+            "player_ids": ["demo-captain-1", "demo-player-2", "demo-player-3", "demo-player-4", "demo-player-5", "demo-player-6"],
+            "pool_balance": 2400,  # Team has collected funds
+            "created_at": datetime.utcnow()
+        },
+        {
+            "id": "demo-team-2", 
+            "name": "Demo Sharjah Strikers",
+            "captain_id": "demo-captain-2",
+            "home_location": "Sharjah",
+            "invite_code": "DEMOSTR456",
+            "player_ids": ["demo-captain-2", "demo-player-7", "demo-player-8", "demo-player-10", "demo-player-11"],
+            "pool_balance": 1500,
+            "created_at": datetime.utcnow()
+        }
+    ]
+    
+    for team in demo_teams:
+        await db.teams.insert_one(team)
+    
+    # ===================== DEMO MATCHES =====================
+    match_date = datetime.utcnow() + timedelta(days=7)
+    past_match_date = datetime.utcnow() - timedelta(days=3)
+    
+    demo_matches = [
+        {
+            "id": "demo-match-1",
+            "team_id": "demo-team-1",
+            "captain_id": "demo-captain-1",
+            "title": "Demo Friday Night T20",
+            "date": match_date,
+            "location": "Dubai Sports City",
+            "ground_id": "ground-1",
+            "format": "T20",
+            "player_limit": 22,
+            "status": "payments_pending",
+            "invited_player_ids": ["demo-player-2", "demo-player-3", "demo-player-4", "demo-player-5", "demo-player-6"],
+            "confirmed_player_ids": ["demo-captain-1", "demo-player-2", "demo-player-3", "demo-player-4", "demo-player-5"],
+            "declined_player_ids": [],
+            "total_cost": 2400,  # Ground fee
+            "per_player_cost": 400,  # 2400 / 6 players
+            "cost_breakdown": {"ground_fee": 2400, "umpire_fee": 0, "balls_equip": 0, "refreshments": 0, "miscellaneous": 0},
+            "player_payments": [
+                {"user_id": "demo-captain-1", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
+                {"user_id": "demo-player-2", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
+                {"user_id": "demo-player-3", "amount_due": 400, "amount_paid": 200, "status": "partial", "paid_at": None},
+                {"user_id": "demo-player-4", "amount_due": 400, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-player-5", "amount_due": 400, "amount_paid": 400, "status": "paid", "paid_at": datetime.utcnow()},
+            ],
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": "demo-match-2",
+            "team_id": "demo-team-1",
+            "captain_id": "demo-captain-1", 
+            "title": "Demo Completed Match",
+            "date": past_match_date,
+            "location": "Sharjah Cricket Stadium",
+            "ground_id": "ground-2",
+            "format": "T20",
+            "player_limit": 22,
+            "status": "completed",
+            "invited_player_ids": ["demo-player-2", "demo-player-3", "demo-player-4"],
+            "confirmed_player_ids": ["demo-captain-1", "demo-player-2", "demo-player-3", "demo-player-4"],
+            "declined_player_ids": [],
+            "total_cost": 1800,
+            "per_player_cost": 450,
+            "cost_breakdown": {"ground_fee": 1800},
+            "player_payments": [
+                {"user_id": "demo-captain-1", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
+                {"user_id": "demo-player-2", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
+                {"user_id": "demo-player-3", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
+                {"user_id": "demo-player-4", "amount_due": 450, "amount_paid": 450, "status": "paid", "paid_at": past_match_date},
+            ],
+            "created_at": past_match_date,
+            "updated_at": past_match_date
+        },
+        {
+            "id": "demo-match-3",
+            "team_id": "demo-team-2",
+            "captain_id": "demo-captain-2",
+            "title": "Demo Sharjah Derby",
+            "date": match_date + timedelta(days=3),
+            "location": "ICC Academy",
+            "ground_id": "ground-3",
+            "format": "ODI",
+            "player_limit": 22,
+            "status": "confirmed",
+            "invited_player_ids": ["demo-player-7", "demo-player-8", "demo-player-10", "demo-player-11"],
+            "confirmed_player_ids": ["demo-captain-2", "demo-player-7", "demo-player-8", "demo-player-10"],
+            "declined_player_ids": [],
+            "total_cost": 3500,
+            "per_player_cost": 700,
+            "cost_breakdown": {"ground_fee": 3000, "umpire_fee": 300, "refreshments": 200},
+            "player_payments": [
+                {"user_id": "demo-captain-2", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-player-7", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-player-8", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-player-10", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
+            ],
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    for match in demo_matches:
+        await db.matches.insert_one(match)
+    
+    # ===================== DEMO PLAYER STATS =====================
+    for user in demo_users:
+        stats = {
+            "id": f"stats-{user['id']}",
+            "user_id": user["id"],
+            "total_matches": user.get("matches_played", 0),
+            "matches_won": int(user.get("matches_played", 0) * 0.55),
+            "matches_lost": int(user.get("matches_played", 0) * 0.45),
+            "win_rate": 55.0,
+            "attendance_rate": 92.0,
+            "on_time_payments": int(user.get("matches_played", 0) * 0.85),
+            "late_payments": int(user.get("matches_played", 0) * 0.15),
+            "payment_reliability": 85.0,
+            "no_shows": 1 if user.get("matches_played", 0) > 20 else 0,
+            "impact_score": 50 + (user.get("matches_played", 0) * 0.5),
+            "reliability_score": 88.0,
+            "overall_rating": 50 + (user.get("matches_played", 0) * 0.4),
+            "recent_results": ["W", "L", "W", "W", "L", "W", "W", "W", "L", "W"][:min(user.get("matches_played", 0), 10)],
+            "form_score": 65.0,
+            "format_stats": {"T20": {"matches": int(user.get("matches_played", 0) * 0.6), "wins": int(user.get("matches_played", 0) * 0.35)}},
+            "updated_at": datetime.utcnow()
+        }
+        await db.player_stats.update_one({"user_id": user["id"]}, {"$set": stats}, upsert=True)
+    
+    # ===================== DEMO TRANSACTIONS =====================
+    demo_transactions = [
+        {"id": "txn-demo-1", "user_id": "demo-captain-1", "type": "topup", "amount": 3000, "balance_after": 5000, "description": "Card top-up", "created_at": datetime.utcnow() - timedelta(days=10)},
+        {"id": "txn-demo-2", "user_id": "demo-captain-1", "type": "match_payment", "amount": -400, "balance_after": 4600, "description": "Payment for Demo Friday Night T20", "reference_id": "demo-match-1", "created_at": datetime.utcnow() - timedelta(days=5)},
+        {"id": "txn-demo-3", "user_id": "demo-player-2", "type": "topup", "amount": 1000, "balance_after": 1500, "description": "Card top-up", "created_at": datetime.utcnow() - timedelta(days=8)},
+        {"id": "txn-demo-4", "user_id": "demo-player-2", "type": "match_payment", "amount": -400, "balance_after": 1100, "description": "Payment for Demo Friday Night T20", "reference_id": "demo-match-1", "created_at": datetime.utcnow() - timedelta(days=4)},
+        {"id": "txn-demo-5", "user_id": "demo-player-3", "type": "match_payment", "amount": -200, "balance_after": 1800, "description": "Partial payment for Demo Friday Night T20", "reference_id": "demo-match-1", "created_at": datetime.utcnow() - timedelta(days=3)},
+    ]
+    
+    for txn in demo_transactions:
+        await db.wallet_transactions.insert_one(txn)
+    
+    return {
+        "message": "Demo data created successfully",
+        "demo_users_created": len(demo_users),
+        "demo_teams_created": len(demo_teams),
+        "demo_matches_created": len(demo_matches),
+        "demo_captain_credentials": {
+            "captain_1": {"phone": "501111111", "name": "Ahmed Khan (Captain)", "team": "Demo Dubai Warriors"},
+            "captain_2": {"phone": "509999999", "name": "Imran Sheikh (Captain)", "team": "Demo Sharjah Strikers"}
+        },
+        "demo_player_credentials": {
+            "player": {"phone": "502222222", "name": "Ravi Sharma"},
+        },
+        "otp_for_all": "123456",
+        "instructions": {
+            "step_1": "Login with phone 501111111 and OTP 123456 to access Captain Ahmed's account",
+            "step_2": "Go to Team > Demo Dubai Warriors to see team dashboard",
+            "step_3": "Go to Captain Financial Dashboard to see collection status",
+            "step_4": "Demo match shows 3/5 players paid (AED 1200 of 2000 collected)"
+        }
+    }
+
 # ==================== AUDIT LOGGING SYSTEM ====================
 
 class AuditAction(str, Enum):
