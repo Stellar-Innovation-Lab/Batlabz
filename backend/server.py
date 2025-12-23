@@ -1691,11 +1691,33 @@ async def seed_demo_data():
     for txn in demo_transactions:
         await db.wallet_transactions.insert_one(txn)
     
+    # ===================== CREATE/UPDATE ADMIN USER =====================
+    admin_exists = await db.users.find_one({"phone": "+971500000000"})
+    if not admin_exists:
+        admin_user = {
+            "id": "demo-admin",
+            "phone": "+971500000000",
+            "name": "Platform Admin",
+            "role": "admin",
+            "playing_role": "all_rounder",
+            "preferred_locations": ["Dubai"],
+            "wallet_balance": 0,
+            "is_profile_complete": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        await db.users.insert_one(admin_user)
+    
     return {
         "message": "Demo data created successfully",
         "demo_users_created": len(demo_users),
         "demo_teams_created": len(demo_teams),
         "demo_matches_created": len(demo_matches),
+        "demo_admin_credentials": {
+            "phone": "500000000",
+            "name": "Platform Admin",
+            "role": "admin"
+        },
         "demo_captain_credentials": {
             "captain_1": {"phone": "501111111", "name": "Ahmed Khan (Captain)", "team": "Demo Dubai Warriors"},
             "captain_2": {"phone": "509999999", "name": "Imran Sheikh (Captain)", "team": "Demo Sharjah Strikers"}
@@ -1705,7 +1727,8 @@ async def seed_demo_data():
         },
         "otp_for_all": "123456",
         "instructions": {
-            "step_1": "Login with phone 501111111 and OTP 123456 to access Captain Ahmed's account",
+            "admin": "Login with phone 500000000 and OTP 123456 to access Admin Dashboard",
+            "captain": "Login with phone 501111111 and OTP 123456 to access Captain Ahmed's account",
             "step_2": "Go to Team > Demo Dubai Warriors to see team dashboard",
             "step_3": "Go to Captain Financial Dashboard to see collection status",
             "step_4": "Demo match shows 3/5 players paid (AED 1200 of 2000 collected)"
