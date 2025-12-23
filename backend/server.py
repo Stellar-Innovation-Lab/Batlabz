@@ -1477,6 +1477,988 @@ async def seed_data():
     
     return {"message": "Seed data created", "grounds_created": len(grounds_data)}
 
+# ==================== AUDIT LOGGING SYSTEM ====================
+
+class AuditAction(str, Enum):
+    WALLET_TOPUP = "wallet_topup"
+    WALLET_DEBIT = "wallet_debit"
+    WALLET_REFUND = "wallet_refund"
+    WALLET_WITHDRAWAL = "wallet_withdrawal"
+    MATCH_PAYMENT = "match_payment"
+    GROUND_BOOKING = "ground_booking"
+    GROUND_BOOKING_CANCEL = "ground_booking_cancel"
+    TEAM_POOL_DEPOSIT = "team_pool_deposit"
+    TEAM_POOL_WITHDRAW = "team_pool_withdraw"
+
+class AuditLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    action: str
+    user_id: str
+    entity_type: str
+    entity_id: str
+    amount: Optional[float] = None
+    balance_before: Optional[float] = None
+    balance_after: Optional[float] = None
+    metadata: Dict[str, Any] = {}
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+async def create_audit_log(action: str, user_id: str, entity_type: str, entity_id: str, 
+                           amount: float = None, balance_before: float = None, 
+                           balance_after: float = None, metadata: dict = {}):
+    """Create an audit log entry for financial transactions"""
+    audit = AuditLog(
+        action=action,
+        user_id=user_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        amount=amount,
+        balance_before=balance_before,
+        balance_after=balance_after,
+        metadata=metadata
+    )
+    await db.audit_logs.insert_one(audit.dict())
+    return audit
+
+# ==================== SAFE WALLET OPERATIONS ====================
+
+async def safe_wallet_credit(user_id: str, amount: float, transaction_type: TransactionType, 
+                             description: str, reference_id: str = None, idempotency_key: str = None) -> bool:
+    """Safely credit wallet with duplicate protection and audit logging"""
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    
+    # Check for duplicate transaction using idempotency key
+    if idempotency_key:
+        existing = await db.wallet_ledger.find_one({"idempotency_key": idempotency_key})
+        if existing:
+            logger.warning(f"Duplicate transaction blocked: {idempotency_key}")
+            return False
+    
+    # Get current balance
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    balance_before = user.get("wallet_balance", 0)
+    balance_after = balance_before + amount
+    
+    # Update wallet balance atomically
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$inc": {"wallet_balance": amount}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=500, detail="Failed to update wallet")
+    
+    # Create transaction record
+    transaction = WalletTransaction(
+        user_id=user_id,
+        type=transaction_type,
+        amount=amount,
+        balance_after=balance_after,
+        description=description,
+        reference_id=reference_id
+    )
+    await db.wallet_transactions.insert_one(transaction.dict())
+    
+    # Create ledger entry
+    ledger_entry = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "transaction_id": transaction.id,
+        "debit": 0,
+        "credit": amount,
+        "balance": balance_after,
+        "description": description,
+        "reference_type": transaction_type,
+        "reference_id": reference_id,
+        "idempotency_key": idempotency_key,
+        "created_at": datetime.utcnow()
+    }
+    await db.wallet_ledger.insert_one(ledger_entry)
+    
+    # Create audit log
+    await create_audit_log(
+        action="wallet_credit",
+        user_id=user_id,
+        entity_type="wallet",
+        entity_id=user_id,
+        amount=amount,
+        balance_before=balance_before,
+        balance_after=balance_after,
+        metadata={"transaction_type": transaction_type, "reference_id": reference_id}
+    )
+    
+    return True
+
+async def safe_wallet_debit(user_id: str, amount: float, transaction_type: TransactionType,
+                            description: str, reference_id: str = None, idempotency_key: str = None) -> bool:
+    """Safely debit wallet with negative balance protection and audit logging"""
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    
+    # Check for duplicate transaction
+    if idempotency_key:
+        existing = await db.wallet_ledger.find_one({"idempotency_key": idempotency_key})
+        if existing:
+            logger.warning(f"Duplicate transaction blocked: {idempotency_key}")
+            return False
+    
+    # Get current balance and check sufficient funds
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    balance_before = user.get("wallet_balance", 0)
+    
+    # Prevent negative balance
+    if balance_before < amount:
+        raise HTTPException(status_code=400, detail=f"Insufficient wallet balance. Available: {balance_before}, Required: {amount}")
+    
+    balance_after = balance_before - amount
+    
+    # Update wallet balance atomically with balance check
+    result = await db.users.update_one(
+        {"id": user_id, "wallet_balance": {"$gte": amount}},
+        {"$inc": {"wallet_balance": -amount}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Insufficient balance or concurrent modification")
+    
+    # Create transaction record
+    transaction = WalletTransaction(
+        user_id=user_id,
+        type=transaction_type,
+        amount=-amount,
+        balance_after=balance_after,
+        description=description,
+        reference_id=reference_id
+    )
+    await db.wallet_transactions.insert_one(transaction.dict())
+    
+    # Create ledger entry
+    ledger_entry = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "transaction_id": transaction.id,
+        "debit": amount,
+        "credit": 0,
+        "balance": balance_after,
+        "description": description,
+        "reference_type": transaction_type,
+        "reference_id": reference_id,
+        "idempotency_key": idempotency_key,
+        "created_at": datetime.utcnow()
+    }
+    await db.wallet_ledger.insert_one(ledger_entry)
+    
+    # Create audit log
+    await create_audit_log(
+        action="wallet_debit",
+        user_id=user_id,
+        entity_type="wallet",
+        entity_id=user_id,
+        amount=-amount,
+        balance_before=balance_before,
+        balance_after=balance_after,
+        metadata={"transaction_type": transaction_type, "reference_id": reference_id}
+    )
+    
+    return True
+
+# ==================== PLAYER STATS MODEL ====================
+
+class PlayerStats(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    total_matches: int = 0
+    matches_won: int = 0
+    matches_lost: int = 0
+    win_rate: float = 0.0
+    matches_confirmed: int = 0
+    matches_attended: int = 0
+    attendance_rate: float = 100.0
+    on_time_payments: int = 0
+    late_payments: int = 0
+    payment_reliability: float = 100.0
+    no_shows: int = 0
+    ground_stats: Dict[str, Dict[str, Any]] = {}
+    format_stats: Dict[str, Dict[str, Any]] = {}
+    impact_score: float = 50.0
+    reliability_score: float = 100.0
+    overall_rating: float = 50.0
+    teammates_played_with: Dict[str, int] = {}
+    recent_results: List[str] = []
+    form_score: float = 50.0
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+async def get_or_create_player_stats(user_id: str) -> dict:
+    """Get or create player statistics"""
+    stats = await db.player_stats.find_one({"user_id": user_id})
+    if not stats:
+        new_stats = PlayerStats(user_id=user_id)
+        await db.player_stats.insert_one(new_stats.dict())
+        return new_stats.dict()
+    return stats
+
+async def update_player_stats_after_match(user_id: str, match_data: dict, won: bool = None, attended: bool = True):
+    """Update player statistics after a match"""
+    stats = await get_or_create_player_stats(user_id)
+    
+    updates = {
+        "total_matches": stats.get("total_matches", 0) + 1,
+        "updated_at": datetime.utcnow()
+    }
+    
+    if won is True:
+        updates["matches_won"] = stats.get("matches_won", 0) + 1
+        recent = stats.get("recent_results", [])[-9:] + ["W"]
+        updates["recent_results"] = recent
+    elif won is False:
+        updates["matches_lost"] = stats.get("matches_lost", 0) + 1
+        recent = stats.get("recent_results", [])[-9:] + ["L"]
+        updates["recent_results"] = recent
+    
+    if attended:
+        updates["matches_attended"] = stats.get("matches_attended", 0) + 1
+    else:
+        updates["no_shows"] = stats.get("no_shows", 0) + 1
+    
+    # Update ground stats
+    ground_id = match_data.get("ground_id")
+    if ground_id:
+        ground_stats = stats.get("ground_stats", {})
+        if ground_id not in ground_stats:
+            ground_stats[ground_id] = {"matches": 0, "wins": 0}
+        ground_stats[ground_id]["matches"] += 1
+        if won:
+            ground_stats[ground_id]["wins"] += 1
+        updates["ground_stats"] = ground_stats
+    
+    # Update format stats
+    match_format = match_data.get("format", "T20")
+    format_stats = stats.get("format_stats", {})
+    if match_format not in format_stats:
+        format_stats[match_format] = {"matches": 0, "wins": 0}
+    format_stats[match_format]["matches"] += 1
+    if won:
+        format_stats[match_format]["wins"] += 1
+    updates["format_stats"] = format_stats
+    
+    # Calculate win rate
+    total = updates.get("total_matches", stats.get("total_matches", 0))
+    wins = updates.get("matches_won", stats.get("matches_won", 0))
+    updates["win_rate"] = (wins / total * 100) if total > 0 else 0
+    
+    # Calculate attendance rate
+    confirmed = stats.get("matches_confirmed", 0)
+    attended_count = updates.get("matches_attended", stats.get("matches_attended", 0))
+    updates["attendance_rate"] = (attended_count / confirmed * 100) if confirmed > 0 else 100
+    
+    # Calculate form score (last 10 matches)
+    recent_results = updates.get("recent_results", stats.get("recent_results", []))
+    form_wins = recent_results.count("W")
+    updates["form_score"] = (form_wins / len(recent_results) * 100) if recent_results else 50
+    
+    # Calculate overall rating (weighted average)
+    reliability = stats.get("reliability_score", 100)
+    impact = stats.get("impact_score", 50)
+    form = updates.get("form_score", 50)
+    updates["overall_rating"] = (reliability * 0.3 + impact * 0.4 + form * 0.3)
+    
+    await db.player_stats.update_one({"user_id": user_id}, {"$set": updates})
+
+# ==================== AI MATCHMAKING & PREDICTIONS ====================
+
+class MatchmakingRequest(BaseModel):
+    team_id: str
+    preferred_date: Optional[datetime] = None
+    format: MatchFormat = MatchFormat.T20
+    skill_range: str = "similar"  # "similar", "higher", "lower", "any"
+
+class TeamPredictionRequest(BaseModel):
+    team1_id: str
+    team2_id: str
+    format: MatchFormat = MatchFormat.T20
+    ground_id: Optional[str] = None
+
+@api_router.post("/ai/matchmaking")
+async def find_opponent_teams(request: MatchmakingRequest, current_user: User = Depends(get_current_user)):
+    """AI-powered matchmaking to find suitable opponent teams"""
+    team = await db.teams.find_one({"id": request.team_id})
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    # Get team stats
+    team_stats = await db.team_stats.find_one({"team_id": request.team_id}) or {}
+    team_win_rate = team_stats.get("win_rate", 50)
+    
+    # Find potential opponents
+    all_teams = await db.teams.find({"id": {"$ne": request.team_id}}).to_list(100)
+    
+    recommendations = []
+    for opponent in all_teams:
+        opponent_stats = await db.team_stats.find_one({"team_id": opponent["id"]}) or {}
+        opponent_win_rate = opponent_stats.get("win_rate", 50)
+        
+        # Calculate compatibility score
+        skill_diff = abs(team_win_rate - opponent_win_rate)
+        
+        if request.skill_range == "similar":
+            if skill_diff > 20:
+                continue
+            compatibility = 100 - (skill_diff * 2)
+        elif request.skill_range == "higher":
+            if opponent_win_rate <= team_win_rate:
+                continue
+            compatibility = 80 + (skill_diff / 2)
+        elif request.skill_range == "lower":
+            if opponent_win_rate >= team_win_rate:
+                continue
+            compatibility = 80 + (skill_diff / 2)
+        else:
+            compatibility = 70
+        
+        # Check head-to-head history
+        head_to_head = opponent_stats.get("head_to_head", {}).get(request.team_id, {})
+        
+        # Get suggested grounds
+        suggested_grounds = await db.grounds.find({"slots.is_available": True}).to_list(3)
+        
+        recommendations.append({
+            "opponent_team": {
+                "id": opponent["id"],
+                "name": opponent["name"],
+                "location": opponent.get("home_location", ""),
+                "player_count": len(opponent.get("player_ids", [])),
+                "win_rate": opponent_win_rate
+            },
+            "compatibility_score": round(compatibility, 1),
+            "predicted_match_quality": round((100 - skill_diff) * 0.8 + 20, 1),
+            "head_to_head": head_to_head if head_to_head else None,
+            "suggested_grounds": [{
+                "id": g["id"],
+                "name": g["name"],
+                "location": g["location"],
+                "price_per_hour": g["price_per_hour"]
+            } for g in suggested_grounds],
+            "recommendation_reason": f"Similar skill level (Win rate diff: {skill_diff:.0f}%)" if skill_diff < 15 else "Good challenge opportunity"
+        })
+    
+    # Sort by compatibility
+    recommendations.sort(key=lambda x: x["compatibility_score"], reverse=True)
+    
+    return {"recommendations": recommendations[:10]}
+
+@api_router.post("/ai/predict-match")
+async def predict_match_outcome(request: TeamPredictionRequest, current_user: User = Depends(get_current_user)):
+    """AI-powered match outcome prediction"""
+    team1_stats = await db.team_stats.find_one({"team_id": request.team1_id}) or {}
+    team2_stats = await db.team_stats.find_one({"team_id": request.team2_id}) or {}
+    
+    team1 = await db.teams.find_one({"id": request.team1_id})
+    team2 = await db.teams.find_one({"id": request.team2_id})
+    
+    if not team1 or not team2:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    factors = []
+    
+    # Base win rates
+    t1_wr = team1_stats.get("win_rate", 50)
+    t2_wr = team2_stats.get("win_rate", 50)
+    
+    factors.append({
+        "factor": "Overall Win Rate",
+        "team1_value": f"{t1_wr:.1f}%",
+        "team2_value": f"{t2_wr:.1f}%",
+        "advantage": "team1" if t1_wr > t2_wr else "team2" if t2_wr > t1_wr else "neutral"
+    })
+    
+    # Ground performance (if ground specified)
+    if request.ground_id:
+        t1_ground = team1_stats.get("ground_performance", {}).get(request.ground_id, {})
+        t2_ground = team2_stats.get("ground_performance", {}).get(request.ground_id, {})
+        
+        t1_ground_wr = (t1_ground.get("wins", 0) / t1_ground.get("matches", 1) * 100) if t1_ground.get("matches", 0) > 0 else 50
+        t2_ground_wr = (t2_ground.get("wins", 0) / t2_ground.get("matches", 1) * 100) if t2_ground.get("matches", 0) > 0 else 50
+        
+        factors.append({
+            "factor": "Ground Performance",
+            "team1_value": f"{t1_ground_wr:.1f}%",
+            "team2_value": f"{t2_ground_wr:.1f}%",
+            "advantage": "team1" if t1_ground_wr > t2_ground_wr else "team2" if t2_ground_wr > t1_ground_wr else "neutral"
+        })
+    
+    # Head to head
+    h2h = team1_stats.get("head_to_head", {}).get(request.team2_id, {})
+    if h2h:
+        t1_h2h_wins = h2h.get("won", 0)
+        t2_h2h_wins = h2h.get("lost", 0)
+        factors.append({
+            "factor": "Head to Head",
+            "team1_value": f"{t1_h2h_wins} wins",
+            "team2_value": f"{t2_h2h_wins} wins",
+            "advantage": "team1" if t1_h2h_wins > t2_h2h_wins else "team2" if t2_h2h_wins > t1_h2h_wins else "neutral"
+        })
+    
+    # Recent form (current streak)
+    t1_streak = team1_stats.get("current_streak", 0)
+    t2_streak = team2_stats.get("current_streak", 0)
+    factors.append({
+        "factor": "Current Form",
+        "team1_value": f"{'+' if t1_streak > 0 else ''}{t1_streak}",
+        "team2_value": f"{'+' if t2_streak > 0 else ''}{t2_streak}",
+        "advantage": "team1" if t1_streak > t2_streak else "team2" if t2_streak > t1_streak else "neutral"
+    })
+    
+    # Calculate probabilities
+    t1_score = t1_wr * 0.4
+    t2_score = t2_wr * 0.4
+    
+    # Add form bonus
+    t1_score += max(0, t1_streak * 2)
+    t2_score += max(0, t2_streak * 2)
+    
+    # Normalize
+    total = t1_score + t2_score
+    if total > 0:
+        t1_prob = (t1_score / total) * 100
+        t2_prob = (t2_score / total) * 100
+    else:
+        t1_prob = t2_prob = 50
+    
+    draw_prob = max(5, 15 - abs(t1_prob - t2_prob) / 5)
+    t1_prob = t1_prob * (100 - draw_prob) / 100
+    t2_prob = t2_prob * (100 - draw_prob) / 100
+    
+    return {
+        "team1": {"id": team1["id"], "name": team1["name"]},
+        "team2": {"id": team2["id"], "name": team2["name"]},
+        "team1_win_probability": round(t1_prob, 1),
+        "team2_win_probability": round(t2_prob, 1),
+        "draw_probability": round(draw_prob, 1),
+        "factors": factors,
+        "confidence": round(70 + abs(t1_prob - t2_prob) / 3, 1),
+        "prediction": team1["name"] if t1_prob > t2_prob else team2["name"]
+    }
+
+@api_router.get("/ai/player-recommendations/{team_id}")
+async def get_player_recommendations(team_id: str, current_user: User = Depends(get_current_user)):
+    """AI-powered player recommendations for a team"""
+    team = await db.teams.find_one({"id": team_id})
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    # Get current team players
+    current_players = set(team.get("player_ids", []))
+    
+    # Get all other players
+    all_users = await db.users.find({
+        "id": {"$nin": list(current_players)},
+        "role": {"$in": ["player", "captain"]}
+    }).to_list(100)
+    
+    recommendations = []
+    
+    for user in all_users:
+        stats = await db.player_stats.find_one({"user_id": user["id"]}) or {}
+        
+        # Calculate compatibility
+        reliability = stats.get("reliability_score", 80)
+        impact = stats.get("impact_score", 50)
+        form = stats.get("form_score", 50)
+        
+        # Check if played with team members before
+        teammates_played = stats.get("teammates_played_with", {})
+        team_chemistry = sum(teammates_played.get(pid, 0) for pid in current_players)
+        
+        # Location match bonus
+        location_bonus = 20 if team.get("home_location", "").lower() in [loc.lower() for loc in user.get("preferred_locations", [])] else 0
+        
+        compatibility = (reliability * 0.3 + impact * 0.4 + form * 0.2 + (team_chemistry * 2) + location_bonus)
+        
+        strengths = []
+        if reliability > 85:
+            strengths.append("Highly reliable")
+        if impact > 70:
+            strengths.append("High impact player")
+        if form > 70:
+            strengths.append("In great form")
+        if team_chemistry > 5:
+            strengths.append(f"Chemistry with {team_chemistry} teammates")
+        
+        role_str = user.get("playing_role", "all_rounder").replace("_", " ").title()
+        strengths.append(role_str)
+        
+        recommendations.append({
+            "player": {
+                "id": user["id"],
+                "name": user.get("name", "Unknown"),
+                "playing_role": user.get("playing_role", "all_rounder"),
+                "matches_played": user.get("matches_played", 0),
+                "overall_rating": stats.get("overall_rating", 50)
+            },
+            "compatibility_score": round(min(100, compatibility), 1),
+            "strengths": strengths[:4],
+            "impact_prediction": round(impact, 1),
+            "recommendation_reason": f"{role_str} with {reliability:.0f}% reliability"
+        })
+    
+    # Sort by compatibility
+    recommendations.sort(key=lambda x: x["compatibility_score"], reverse=True)
+    
+    return {"recommendations": recommendations[:15]}
+
+# ==================== ENHANCED CAPTAIN DASHBOARD ====================
+
+@api_router.get("/captain/financial-summary/{team_id}")
+async def get_captain_financial_summary(team_id: str, current_user: User = Depends(get_current_user)):
+    """Get detailed financial summary for captain"""
+    team = await db.teams.find_one({"id": team_id})
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    if team["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can view this")
+    
+    # Get all matches for this team
+    matches = await db.matches.find({"team_id": team_id}).to_list(100)
+    
+    total_due = 0
+    total_collected = 0
+    total_pending = 0
+    total_refunded = 0
+    players_paid = set()
+    players_pending = set()
+    
+    for match in matches:
+        for payment in match.get("player_payments", []):
+            total_due += payment.get("amount_due", 0)
+            total_collected += payment.get("amount_paid", 0)
+            
+            if payment.get("status") == "paid":
+                players_paid.add(payment.get("user_id"))
+            elif payment.get("status") == "pending":
+                total_pending += payment.get("amount_due", 0) - payment.get("amount_paid", 0)
+                players_pending.add(payment.get("user_id"))
+            elif payment.get("status") == "refunded":
+                total_refunded += payment.get("amount_paid", 0)
+    
+    # Get recent transactions
+    player_ids = list(players_paid | players_pending)
+    recent_txns = await db.wallet_transactions.find({
+        "user_id": {"$in": player_ids},
+        "reference_id": {"$in": [m["id"] for m in matches]}
+    }).sort("created_at", -1).to_list(20)
+    
+    collection_rate = (total_collected / total_due * 100) if total_due > 0 else 0
+    
+    return {
+        "total_due": round(total_due, 2),
+        "total_collected": round(total_collected, 2),
+        "total_pending": round(total_pending, 2),
+        "total_refunded": round(total_refunded, 2),
+        "collection_rate": round(collection_rate, 1),
+        "players_paid": len(players_paid),
+        "players_pending": len(players_pending),
+        "team_wallet_balance": team.get("pool_balance", 0),
+        "recent_transactions": [{
+            "id": t["id"],
+            "user_id": t["user_id"],
+            "amount": t["amount"],
+            "type": t["type"],
+            "description": t["description"],
+            "created_at": t["created_at"].isoformat() if isinstance(t["created_at"], datetime) else t["created_at"]
+        } for t in recent_txns]
+    }
+
+@api_router.get("/captain/match-financials/{match_id}")
+async def get_match_financial_details(match_id: str, current_user: User = Depends(get_current_user)):
+    """Get detailed financial breakdown for a specific match"""
+    match = await db.matches.find_one({"id": match_id})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    team = await db.teams.find_one({"id": match["team_id"]})
+    if team["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can view this")
+    
+    # Calculate totals
+    total_collected = sum(p.get("amount_paid", 0) for p in match.get("player_payments", []))
+    total_pending = sum(
+        p.get("amount_due", 0) - p.get("amount_paid", 0) 
+        for p in match.get("player_payments", []) 
+        if p.get("status") in ["pending", "partial"]
+    )
+    refunded_amount = sum(
+        p.get("amount_paid", 0) 
+        for p in match.get("player_payments", []) 
+        if p.get("status") == "refunded"
+    )
+    
+    # Get ground booking details
+    ground_booking = None
+    if match.get("ground_booking_id"):
+        booking = await db.ground_bookings.find_one({"id": match["ground_booking_id"]})
+        if booking:
+            ground_booking = {
+                "id": booking["id"],
+                "ground_name": booking.get("ground_name"),
+                "date": booking.get("date"),
+                "time": f"{booking.get('start_time')} - {booking.get('end_time')}",
+                "price": booking.get("price"),
+                "status": booking.get("status")
+            }
+    
+    cost_breakdown = match.get("cost_breakdown", {})
+    ground_cost = cost_breakdown.get("ground_fee", 0)
+    other_costs = cost_breakdown.get("umpire_fee", 0) + cost_breakdown.get("balls_equipment", 0) + cost_breakdown.get("miscellaneous", 0)
+    
+    return {
+        "match_id": match["id"],
+        "match_title": match["title"],
+        "match_date": match["date"].isoformat() if isinstance(match["date"], datetime) else match["date"],
+        "total_cost": match.get("total_cost", 0),
+        "ground_booking_cost": ground_cost,
+        "other_costs": other_costs,
+        "total_collected": total_collected,
+        "total_pending": total_pending,
+        "refunded_amount": refunded_amount,
+        "player_payments": [{
+            "user_id": p.get("user_id"),
+            "user_name": p.get("user_name"),
+            "amount_due": p.get("amount_due"),
+            "amount_paid": p.get("amount_paid"),
+            "status": p.get("status"),
+            "is_guest": p.get("is_guest", False),
+            "paid_at": p.get("paid_at").isoformat() if p.get("paid_at") else None
+        } for p in match.get("player_payments", [])],
+        "ground_booking": ground_booking
+    }
+
+# ==================== ENHANCED TEAM WALLET ====================
+
+@api_router.post("/team/{team_id}/wallet/withdraw")
+async def withdraw_from_team_wallet(team_id: str, amount: float, current_user: User = Depends(get_current_user)):
+    """Withdraw from team pool wallet to captain's personal wallet"""
+    team = await db.teams.find_one({"id": team_id})
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    if team["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can withdraw")
+    
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    
+    pool_balance = team.get("pool_balance", 0)
+    if pool_balance < amount:
+        raise HTTPException(status_code=400, detail=f"Insufficient pool balance. Available: {pool_balance}")
+    
+    idempotency_key = f"team_withdraw_{team_id}_{current_user.id}_{datetime.utcnow().isoformat()}"
+    
+    # Deduct from team pool
+    result = await db.teams.update_one(
+        {"id": team_id, "pool_balance": {"$gte": amount}},
+        {"$inc": {"pool_balance": -amount}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Failed to withdraw - insufficient balance")
+    
+    # Credit to captain's wallet
+    await safe_wallet_credit(
+        user_id=current_user.id,
+        amount=amount,
+        transaction_type=TransactionType.TEAM_POOL,
+        description=f"Withdrawal from {team['name']} team pool",
+        reference_id=team_id,
+        idempotency_key=idempotency_key
+    )
+    
+    # Audit log
+    await create_audit_log(
+        action="team_pool_withdraw",
+        user_id=current_user.id,
+        entity_type="team",
+        entity_id=team_id,
+        amount=amount,
+        balance_before=pool_balance,
+        balance_after=pool_balance - amount,
+        metadata={"team_name": team["name"]}
+    )
+    
+    return {
+        "message": f"Successfully withdrew AED {amount}",
+        "team_balance": pool_balance - amount,
+        "transferred_to_wallet": True
+    }
+
+# ==================== PLAYER STATS ENDPOINTS ====================
+
+@api_router.get("/players/{user_id}/stats")
+async def get_player_stats(user_id: str, current_user: User = Depends(get_current_user)):
+    """Get detailed player statistics"""
+    stats = await get_or_create_player_stats(user_id)
+    user = await db.users.find_one({"id": user_id})
+    
+    return {
+        "user": {
+            "id": user["id"],
+            "name": user.get("name", "Unknown"),
+            "playing_role": user.get("playing_role"),
+            "matches_played": user.get("matches_played", 0)
+        } if user else None,
+        "stats": stats
+    }
+
+@api_router.get("/my-stats")
+async def get_my_stats(current_user: User = Depends(get_current_user)):
+    """Get current user's statistics"""
+    stats = await get_or_create_player_stats(current_user.id)
+    return stats
+
+# ==================== AUDIT LOG ENDPOINTS ====================
+
+@api_router.get("/audit/transactions/{user_id}")
+async def get_user_audit_log(user_id: str, current_user: User = Depends(get_current_user)):
+    """Get audit log for a user (admin or self only)"""
+    if current_user.role != UserRole.ADMIN and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    logs = await db.audit_logs.find({"user_id": user_id}).sort("created_at", -1).to_list(100)
+    return {"audit_logs": logs}
+
+@api_router.get("/wallet/ledger")
+async def get_wallet_ledger(current_user: User = Depends(get_current_user)):
+    """Get detailed wallet ledger for current user"""
+    ledger = await db.wallet_ledger.find({"user_id": current_user.id}).sort("created_at", -1).to_list(100)
+    
+    return {
+        "ledger": [{
+            "id": l["id"],
+            "debit": l.get("debit", 0),
+            "credit": l.get("credit", 0),
+            "balance": l.get("balance", 0),
+            "description": l.get("description"),
+            "reference_type": l.get("reference_type"),
+            "created_at": l.get("created_at")
+        } for l in ledger],
+        "current_balance": current_user.wallet_balance
+    }
+
+# ==================== GROUND BOOKING LINKED TO MATCH ====================
+
+@api_router.post("/matches/{match_id}/book-ground")
+async def book_ground_for_match(match_id: str, ground_id: str, slot_id: str, current_user: User = Depends(get_current_user)):
+    """Book a ground slot and link it to a match"""
+    match = await db.matches.find_one({"id": match_id})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    if match["captain_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Only captain can book ground")
+    
+    ground = await db.grounds.find_one({"id": ground_id})
+    if not ground:
+        raise HTTPException(status_code=404, detail="Ground not found")
+    
+    # Find the slot
+    slot = None
+    for s in ground.get("slots", []):
+        if s["id"] == slot_id:
+            slot = s
+            break
+    
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    
+    if not slot.get("is_available", False):
+        raise HTTPException(status_code=400, detail="Slot is not available")
+    
+    # Check wallet balance
+    if current_user.wallet_balance < slot["price"]:
+        raise HTTPException(status_code=400, detail=f"Insufficient balance. Required: {slot['price']}")
+    
+    idempotency_key = f"ground_booking_{match_id}_{slot_id}"
+    
+    # Create booking
+    booking = GroundBooking(
+        ground_id=ground_id,
+        ground_name=ground["name"],
+        slot_id=slot_id,
+        user_id=current_user.id,
+        match_id=match_id,
+        date=slot["date"],
+        start_time=slot["start_time"],
+        end_time=slot["end_time"],
+        price=slot["price"]
+    )
+    
+    # Debit wallet
+    await safe_wallet_debit(
+        user_id=current_user.id,
+        amount=slot["price"],
+        transaction_type=TransactionType.GROUND_BOOKING,
+        description=f"Ground booking: {ground['name']} on {slot['date']}",
+        reference_id=booking.id,
+        idempotency_key=idempotency_key
+    )
+    
+    # Update slot availability
+    await db.grounds.update_one(
+        {"id": ground_id, "slots.id": slot_id},
+        {"$set": {
+            "slots.$.is_available": False,
+            "slots.$.booked_by": current_user.id,
+            "slots.$.booking_id": booking.id,
+            "slots.$.match_id": match_id
+        }}
+    )
+    
+    # Update ground stats
+    await db.grounds.update_one(
+        {"id": ground_id},
+        {"$inc": {"total_bookings": 1, "total_earnings": slot["price"]}}
+    )
+    
+    # Save booking
+    await db.ground_bookings.insert_one(booking.dict())
+    
+    # Link to match
+    await db.matches.update_one(
+        {"id": match_id},
+        {"$set": {
+            "ground_id": ground_id,
+            "ground_booking_id": booking.id,
+            "location": ground["name"],
+            "cost_breakdown.ground_fee": slot["price"]
+        }}
+    )
+    
+    # Audit log
+    await create_audit_log(
+        action="ground_booking",
+        user_id=current_user.id,
+        entity_type="booking",
+        entity_id=booking.id,
+        amount=slot["price"],
+        metadata={
+            "ground_id": ground_id,
+            "ground_name": ground["name"],
+            "match_id": match_id,
+            "slot": slot
+        }
+    )
+    
+    # Send notification to ground owner
+    if ground.get("owner_id") and ground["owner_id"] != "system":
+        notification = Notification(
+            user_id=ground["owner_id"],
+            title="New Booking!",
+            message=f"Your ground {ground['name']} has been booked for {slot['date']} ({slot['start_time']} - {slot['end_time']})",
+            type="ground_booking",
+            reference_id=booking.id
+        )
+        await db.notifications.insert_one(notification.dict())
+    
+    return {
+        "booking": booking,
+        "message": "Ground booked successfully and linked to match"
+    }
+
+@api_router.post("/bookings/{booking_id}/refund")
+async def refund_ground_booking(booking_id: str, current_user: User = Depends(get_current_user)):
+    """Cancel booking and process refund with ledger entries"""
+    booking = await db.ground_bookings.find_one({"id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    if booking["user_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your booking")
+    
+    if booking["status"] == "cancelled":
+        raise HTTPException(status_code=400, detail="Booking already cancelled")
+    
+    ground = await db.grounds.find_one({"id": booking["ground_id"]})
+    
+    # Calculate refund based on cancellation policy
+    hours_until = 48  # Simplified - would calculate actual hours
+    cancellation_hours = ground.get("cancellation_hours", 24) if ground else 24
+    cancellation_fee_percent = ground.get("cancellation_fee_percent", 20) if ground else 20
+    
+    if hours_until < cancellation_hours:
+        refund_percent = 100 - cancellation_fee_percent
+    else:
+        refund_percent = 100
+    
+    refund_amount = booking["price"] * (refund_percent / 100)
+    
+    idempotency_key = f"booking_refund_{booking_id}"
+    
+    # Credit refund to wallet
+    await safe_wallet_credit(
+        user_id=current_user.id,
+        amount=refund_amount,
+        transaction_type=TransactionType.REFUND,
+        description=f"Refund: {booking['ground_name']} booking ({refund_percent}%)",
+        reference_id=booking_id,
+        idempotency_key=idempotency_key
+    )
+    
+    # Update booking status
+    await db.ground_bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    # Release slot
+    if ground:
+        await db.grounds.update_one(
+            {"id": booking["ground_id"], "slots.id": booking["slot_id"]},
+            {"$set": {
+                "slots.$.is_available": True,
+                "slots.$.booked_by": None,
+                "slots.$.booking_id": None,
+                "slots.$.match_id": None
+            }}
+        )
+    
+    # Update match if linked
+    if booking.get("match_id"):
+        await db.matches.update_one(
+            {"id": booking["match_id"]},
+            {"$set": {
+                "ground_id": None,
+                "ground_booking_id": None,
+                "cost_breakdown.ground_fee": 0
+            }}
+        )
+    
+    # Audit log
+    await create_audit_log(
+        action="ground_booking_cancel",
+        user_id=current_user.id,
+        entity_type="booking",
+        entity_id=booking_id,
+        amount=refund_amount,
+        metadata={
+            "original_price": booking["price"],
+            "refund_percent": refund_percent,
+            "cancellation_fee": booking["price"] - refund_amount
+        }
+    )
+    
+    return {
+        "message": "Booking cancelled",
+        "refund_amount": refund_amount,
+        "refund_percent": refund_percent,
+        "cancellation_fee": booking["price"] - refund_amount
+    }
+
 # Include router
 app.include_router(api_router)
 
