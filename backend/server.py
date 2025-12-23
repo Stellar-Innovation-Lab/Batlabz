@@ -2230,7 +2230,19 @@ async def get_user_audit_log(user_id: str, current_user: User = Depends(get_curr
         raise HTTPException(status_code=403, detail="Not authorized")
     
     logs = await db.audit_logs.find({"user_id": user_id}).sort("created_at", -1).to_list(100)
-    return {"audit_logs": logs}
+    # Convert to JSON-serializable format
+    return {"audit_logs": [{
+        "id": log.get("id"),
+        "action": log.get("action"),
+        "user_id": log.get("user_id"),
+        "entity_type": log.get("entity_type"),
+        "entity_id": log.get("entity_id"),
+        "amount": log.get("amount"),
+        "balance_before": log.get("balance_before"),
+        "balance_after": log.get("balance_after"),
+        "metadata": log.get("metadata", {}),
+        "created_at": log.get("created_at").isoformat() if log.get("created_at") else None
+    } for log in logs]}
 
 @api_router.get("/wallet/ledger")
 async def get_wallet_ledger(current_user: User = Depends(get_current_user)):
