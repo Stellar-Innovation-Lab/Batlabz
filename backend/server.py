@@ -1608,10 +1608,10 @@ async def seed_demo_data():
             "per_player_cost": 700,
             "cost_breakdown": {"ground_fee": 3000, "umpire_fee": 300, "refreshments": 200},
             "player_payments": [
-                {"user_id": "demo-captain-2", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
-                {"user_id": "demo-player-7", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
-                {"user_id": "demo-player-8", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
-                {"user_id": "demo-player-10", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-captain-2", "user_name": "Imran Sheikh", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-player-7", "user_name": "Suresh Kumar", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-player-8", "user_name": "Hassan Malik", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
+                {"user_id": "demo-player-10", "user_name": "Vikram Singh", "amount_due": 700, "amount_paid": 0, "status": "pending", "paid_at": None},
             ],
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
