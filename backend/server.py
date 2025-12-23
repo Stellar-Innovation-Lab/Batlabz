@@ -2346,7 +2346,7 @@ async def get_match_financial_details(match_id: str, current_user: User = Depend
 # ==================== ENHANCED TEAM WALLET ====================
 
 @api_router.post("/team/{team_id}/wallet/withdraw")
-async def withdraw_from_team_wallet(team_id: str, request: TeamPoolRequest, current_user: User = Depends(get_current_user)):
+async def withdraw_from_team_wallet(team_id: str, request: WithdrawRequest, current_user: User = Depends(get_current_user)):
     """Withdraw from team pool wallet to captain's personal wallet"""
     amount = request.amount
     
