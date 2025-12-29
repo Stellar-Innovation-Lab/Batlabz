@@ -10,7 +10,9 @@ import {
   Dimensions,
   Animated,
   Easing,
-  StatusBar
+  StatusBar,
+  ScrollView,
+  Keyboard
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -75,8 +77,8 @@ const Particle = ({ delay, size, x, color }: any) => {
   );
 };
 
-// Cricket ball with seam animation
-const CricketBall = () => {
+// Cricket ball with rotation
+const CricketBall = ({ compact }: { compact?: boolean }) => {
   const rotate = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0)).current;
 
@@ -103,12 +105,23 @@ const CricketBall = () => {
     outputRange: ['0deg', '360deg'],
   });
 
+  const ballSize = compact ? 60 : 90;
+  const innerSize = compact ? 46 : 70;
+  const emojiSize = compact ? 28 : 40;
+
   return (
-    <Animated.View style={[styles.cricketBall, { transform: [{ rotate: spin }, { scale }] }]}>
-      <View style={styles.ballInner}>
-        <Text style={styles.ballEmoji}>🏏</Text>
+    <Animated.View style={[
+      styles.cricketBall, 
+      { 
+        width: ballSize, 
+        height: ballSize, 
+        borderRadius: ballSize / 2,
+        transform: [{ rotate: spin }, { scale }] 
+      }
+    ]}>
+      <View style={[styles.ballInner, { width: innerSize, height: innerSize, borderRadius: innerSize / 2 }]}>
+        <Text style={[styles.ballEmoji, { fontSize: emojiSize }]}>🏏</Text>
       </View>
-      <View style={styles.ballSeam} />
     </Animated.View>
   );
 };
@@ -119,45 +132,48 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [focused, setFocused] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Animations
-  const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(-30)).current;
   const formOpacity = useRef(new Animated.Value(0)).current;
-  const formTranslateY = useRef(new Animated.Value(50)).current;
-  const inputBorderWidth = useRef(new Animated.Value(1)).current;
+  const formTranslateY = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.delay(300),
-      Animated.parallel([
-        Animated.timing(titleOpacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.spring(titleTranslateY, {
-          toValue: 0,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.parallel([
-        Animated.timing(formOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(formTranslateY, {
-          toValue: 0,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]),
+    Animated.parallel([
+      Animated.timing(formOpacity, {
+        toValue: 1,
+        duration: 600,
+        delay: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(formTranslateY, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        delay: 300,
+        useNativeDriver: true,
+      }),
     ]).start();
+  }, []);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+      // Scroll to bottom when keyboard shows
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   const formatPhone = (text: string) => {
@@ -174,18 +190,10 @@ export default function LoginScreen() {
 
   const handleFocus = () => {
     setFocused(true);
-    Animated.spring(inputBorderWidth, {
-      toValue: 2,
-      useNativeDriver: false,
-    }).start();
   };
 
   const handleBlur = () => {
     setFocused(false);
-    Animated.spring(inputBorderWidth, {
-      toValue: 1,
-      useNativeDriver: false,
-    }).start();
   };
 
   const handleContinue = async () => {
@@ -196,6 +204,7 @@ export default function LoginScreen() {
       return;
     }
 
+    Keyboard.dismiss();
     setLoading(true);
     setError('');
 
@@ -223,12 +232,12 @@ export default function LoginScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Animated Particles */}
-      {[...Array(8)].map((_, i) => (
+      {/* Animated Particles - only show when keyboard not visible */}
+      {!keyboardVisible && [...Array(6)].map((_, i) => (
         <Particle
           key={i}
-          delay={i * 800}
-          size={4 + Math.random() * 4}
+          delay={i * 1000}
+          size={4 + Math.random() * 3}
           x={Math.random() * width}
           color={i % 2 === 0 ? COLORS.primary : COLORS.gold}
         />
@@ -238,163 +247,177 @@ export default function LoginScreen() {
       <View style={[styles.orb, styles.orb1]} />
       <View style={[styles.orb, styles.orb2]} />
 
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          {/* Header with Ball */}
-          <Animated.View 
-            style={[
-              styles.header,
-              { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] }
-            ]}
+          <ScrollView
+            ref={scrollViewRef}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
           >
-            <CricketBall />
-            
-            <View style={styles.titleContainer}>
-              <Text style={styles.appName}>BATLABZ</Text>
-              <LinearGradient
-                colors={[COLORS.primary, COLORS.gold]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.taglineGradient}
-              >
-                <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
-              </LinearGradient>
-            </View>
-          </Animated.View>
-
-          {/* Main Form */}
-          <Animated.View 
-            style={[
-              styles.formContainer,
-              { opacity: formOpacity, transform: [{ translateY: formTranslateY }] }
-            ]}
-          >
-            {/* Welcome Section */}
-            <View style={styles.welcomeSection}>
-              <View style={styles.welcomeRow}>
-                <Text style={styles.waveEmoji}>👋</Text>
-                <Text style={styles.welcomeText}>Welcome, Cricketer!</Text>
-              </View>
-              <Text style={styles.subtitleText}>
-                Join UAE's premier cricket community
-              </Text>
-            </View>
-
-            {/* Phone Input Card */}
-            <View style={styles.inputCard}>
-              <Text style={styles.inputLabel}>MOBILE NUMBER</Text>
+            {/* Header with Ball */}
+            <View style={[styles.header, keyboardVisible && styles.headerCompact]}>
+              <CricketBall compact={keyboardVisible} />
               
-              <Animated.View 
-                style={[
-                  styles.inputWrapper,
-                  focused && styles.inputWrapperFocused,
-                  error && styles.inputWrapperError,
-                ]}
-              >
-                <View style={styles.countrySection}>
-                  <Text style={styles.flag}>🇦🇪</Text>
-                  <Text style={styles.countryCode}>+971</Text>
-                </View>
-                
-                <View style={styles.divider} />
-                
-                <TextInput
-                  ref={inputRef}
-                  style={styles.phoneInput}
-                  value={phone}
-                  onChangeText={handlePhoneChange}
-                  onFocus={handleFocus}
-                  onBlur={handleBlur}
-                  placeholder="50 123 4567"
-                  placeholderTextColor="rgba(255,255,255,0.25)"
-                  keyboardType="phone-pad"
-                  maxLength={11}
-                />
-                
-                {isValid && (
-                  <View style={styles.checkIcon}>
-                    <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
-                  </View>
+              <View style={styles.titleContainer}>
+                <Text style={[styles.appName, keyboardVisible && styles.appNameCompact]}>BATLABZ</Text>
+                {!keyboardVisible && (
+                  <LinearGradient
+                    colors={[COLORS.primary, COLORS.gold]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.taglineGradient}
+                  >
+                    <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
+                  </LinearGradient>
                 )}
-              </Animated.View>
-
-              {error ? (
-                <View style={styles.errorRow}>
-                  <Ionicons name="alert-circle" size={14} color={COLORS.error} />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : (
-                <Text style={styles.hintText}>We'll send a verification code via SMS</Text>
-              )}
+              </View>
             </View>
 
-            {/* Continue Button */}
-            <TouchableOpacity
-              onPress={handleContinue}
-              disabled={!isValid || loading}
-              activeOpacity={0.85}
-              style={styles.buttonContainer}
+            {/* Main Form */}
+            <Animated.View 
+              style={[
+                styles.formContainer,
+                { opacity: formOpacity, transform: [{ translateY: formTranslateY }] }
+              ]}
             >
-              <LinearGradient
-                colors={isValid 
-                  ? [COLORS.primary, '#00e676']
-                  : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.continueButton}
-              >
-                {loading ? (
-                  <Text style={styles.buttonText}>Sending...</Text>
-                ) : (
-                  <>
-                    <Text style={[
-                      styles.buttonText,
-                      !isValid && styles.buttonTextDisabled
-                    ]}>
-                      Get Started
-                    </Text>
-                    <View style={[
-                      styles.buttonIcon,
-                      !isValid && styles.buttonIconDisabled
-                    ]}>
-                      <Ionicons 
-                        name="arrow-forward" 
-                        size={18} 
-                        color={isValid ? '#000' : 'rgba(255,255,255,0.3)'} 
-                      />
-                    </View>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Terms */}
-            <Text style={styles.termsText}>
-              By continuing, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms</Text> &{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
-            </Text>
-          </Animated.View>
-
-          {/* Bottom Features */}
-          <View style={styles.featuresContainer}>
-            {[
-              { icon: 'calendar', label: 'Schedule', color: COLORS.primary },
-              { icon: 'wallet', label: 'Pay & Split', color: COLORS.gold },
-              { icon: 'location', label: 'Book', color: COLORS.secondary },
-              { icon: 'trophy', label: 'Compete', color: '#a855f7' },
-            ].map((item, index) => (
-              <View key={index} style={styles.featureItem}>
-                <View style={[styles.featureIconBg, { backgroundColor: item.color + '20' }]}>
-                  <Ionicons name={item.icon as any} size={20} color={item.color} />
+              {/* Welcome Section - hide when keyboard visible */}
+              {!keyboardVisible && (
+                <View style={styles.welcomeSection}>
+                  <View style={styles.welcomeRow}>
+                    <Text style={styles.waveEmoji}>👋</Text>
+                    <Text style={styles.welcomeText}>Welcome, Cricketer!</Text>
+                  </View>
+                  <Text style={styles.subtitleText}>
+                    Join UAE's premier cricket community
+                  </Text>
                 </View>
-                <Text style={styles.featureLabel}>{item.label}</Text>
+              )}
+
+              {/* Phone Input Card */}
+              <View style={styles.inputCard}>
+                <Text style={styles.inputLabel}>MOBILE NUMBER</Text>
+                
+                <View 
+                  style={[
+                    styles.inputWrapper,
+                    focused && styles.inputWrapperFocused,
+                    error && styles.inputWrapperError,
+                  ]}
+                >
+                  <View style={styles.countrySection}>
+                    <Text style={styles.flag}>🇦🇪</Text>
+                    <Text style={styles.countryCode}>+971</Text>
+                  </View>
+                  
+                  <View style={styles.divider} />
+                  
+                  <TextInput
+                    ref={inputRef}
+                    style={styles.phoneInput}
+                    value={phone}
+                    onChangeText={handlePhoneChange}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    placeholder="50 123 4567"
+                    placeholderTextColor="rgba(255,255,255,0.25)"
+                    keyboardType="phone-pad"
+                    maxLength={11}
+                    returnKeyType="done"
+                    onSubmitEditing={handleContinue}
+                  />
+                  
+                  {isValid && (
+                    <View style={styles.checkIcon}>
+                      <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
+                    </View>
+                  )}
+                </View>
+
+                {error ? (
+                  <View style={styles.errorRow}>
+                    <Ionicons name="alert-circle" size={14} color={COLORS.error} />
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.hintText}>We'll send a verification code via SMS</Text>
+                )}
               </View>
-            ))}
-          </View>
+
+              {/* Continue Button */}
+              <TouchableOpacity
+                onPress={handleContinue}
+                disabled={!isValid || loading}
+                activeOpacity={0.85}
+                style={styles.buttonContainer}
+              >
+                <LinearGradient
+                  colors={isValid 
+                    ? [COLORS.primary, '#00e676']
+                    : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.continueButton}
+                >
+                  {loading ? (
+                    <Text style={styles.buttonText}>Sending...</Text>
+                  ) : (
+                    <>
+                      <Text style={[
+                        styles.buttonText,
+                        !isValid && styles.buttonTextDisabled
+                      ]}>
+                        Get Started
+                      </Text>
+                      <View style={[
+                        styles.buttonIcon,
+                        !isValid && styles.buttonIconDisabled
+                      ]}>
+                        <Ionicons 
+                          name="arrow-forward" 
+                          size={18} 
+                          color={isValid ? '#000' : 'rgba(255,255,255,0.3)'} 
+                        />
+                      </View>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Terms - hide when keyboard visible */}
+              {!keyboardVisible && (
+                <Text style={styles.termsText}>
+                  By continuing, you agree to our{' '}
+                  <Text style={styles.termsLink}>Terms</Text> &{' '}
+                  <Text style={styles.termsLink}>Privacy Policy</Text>
+                </Text>
+              )}
+            </Animated.View>
+          </ScrollView>
+
+          {/* Bottom Features - only show when keyboard not visible */}
+          {!keyboardVisible && (
+            <View style={styles.featuresContainer}>
+              {[
+                { icon: 'calendar', label: 'Schedule', color: COLORS.primary },
+                { icon: 'wallet', label: 'Pay & Split', color: COLORS.gold },
+                { icon: 'location', label: 'Book', color: COLORS.secondary },
+                { icon: 'trophy', label: 'Compete', color: '#a855f7' },
+              ].map((item, index) => (
+                <View key={index} style={styles.featureItem}>
+                  <View style={[styles.featureIconBg, { backgroundColor: item.color + '20' }]}>
+                    <Ionicons name={item.icon as any} size={20} color={item.color} />
+                  </View>
+                  <Text style={styles.featureLabel}>{item.label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -411,7 +434,12 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-    justifyContent: 'space-between',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.lg,
   },
 
   // Orbs
@@ -442,48 +470,39 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
   },
+  headerCompact: {
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
   cricketBall: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
     backgroundColor: '#1e293b',
     borderWidth: 3,
     borderColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.lg,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+    marginBottom: SPACING.md,
   },
   ballInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
     backgroundColor: '#0f172a',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ballEmoji: {
-    fontSize: 40,
-  },
-  ballSeam: {
-    position: 'absolute',
-    width: '100%',
-    height: 2,
-    backgroundColor: COLORS.primary,
-    opacity: 0.3,
-  },
+  ballEmoji: {},
   titleContainer: {
     alignItems: 'center',
   },
   appName: {
-    fontSize: 38,
+    fontSize: 36,
     fontWeight: '900',
     color: '#fff',
-    letterSpacing: 8,
+    letterSpacing: 6,
+  },
+  appNameCompact: {
+    fontSize: 28,
+    letterSpacing: 4,
   },
   taglineGradient: {
     marginTop: SPACING.sm,
@@ -500,10 +519,10 @@ const styles = StyleSheet.create({
 
   // Form
   formContainer: {
-    paddingHorizontal: SPACING.xl,
+    width: '100%',
   },
   welcomeSection: {
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   welcomeRow: {
     flexDirection: 'row',
@@ -657,10 +676,11 @@ const styles = StyleSheet.create({
   featuresContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: SPACING.lg,
+    paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
   },
   featureItem: {
     alignItems: 'center',
