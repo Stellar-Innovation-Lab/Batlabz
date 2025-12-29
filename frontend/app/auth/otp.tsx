@@ -8,7 +8,6 @@ import {
   Platform, 
   TouchableOpacity,
   ScrollView,
-  Keyboard,
   Dimensions,
   StatusBar
 } from 'react-native';
@@ -27,13 +26,11 @@ export default function OTPScreen() {
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const { login } = useAuthStore();
   const inputRef = useRef<TextInput>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
   
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(30);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -44,23 +41,6 @@ export default function OTPScreen() {
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 500);
-  }, []);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
   }, []);
 
   const handleOtpChange = (value: string) => {
@@ -75,7 +55,6 @@ export default function OTPScreen() {
       return;
     }
 
-    Keyboard.dismiss();
     setError('');
     setLoading(true);
 
@@ -94,7 +73,6 @@ export default function OTPScreen() {
         router.replace('/(tabs)');
       }
     } catch (err: any) {
-      console.log('OTP Error:', err);
       setError(err.response?.data?.detail || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
@@ -127,6 +105,8 @@ export default function OTPScreen() {
   // Render OTP boxes
   const renderOTPBoxes = () => {
     const boxes = [];
+    const boxWidth = Math.min((width - SPACING.xl * 2 - SPACING.xs * 5) / 6, 50);
+    
     for (let i = 0; i < 6; i++) {
       const isFilled = otp.length > i;
       const isActive = otp.length === i;
@@ -136,6 +116,7 @@ export default function OTPScreen() {
           key={i} 
           style={[
             styles.otpBox,
+            { width: boxWidth },
             isFilled && styles.otpBoxFilled,
             isActive && styles.otpBoxActive,
           ]}
@@ -168,11 +149,10 @@ export default function OTPScreen() {
       <View style={[styles.orb, styles.orb1]} />
       <View style={[styles.orb, styles.orb2]} />
 
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -185,7 +165,6 @@ export default function OTPScreen() {
           </View>
 
           <ScrollView
-            ref={scrollViewRef}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -197,7 +176,7 @@ export default function OTPScreen() {
                 colors={[COLORS.primary, '#00e676']}
                 style={styles.iconGradient}
               >
-                <Ionicons name="shield-checkmark" size={40} color="#000" />
+                <Ionicons name="shield-checkmark" size={36} color="#000" />
               </LinearGradient>
             </View>
 
@@ -219,8 +198,6 @@ export default function OTPScreen() {
               keyboardType="number-pad"
               maxLength={6}
               autoFocus
-              returnKeyType="done"
-              onSubmitEditing={handleVerify}
             />
 
             {/* OTP Boxes */}
@@ -297,14 +274,15 @@ export default function OTPScreen() {
             </View>
 
             {/* Demo Hint */}
-            {!keyboardVisible && (
-              <View style={styles.demoHint}>
-                <Ionicons name="information-circle" size={16} color={COLORS.gold} />
-                <Text style={styles.demoHintText}>
-                  Demo: Use OTP <Text style={styles.demoCode}>123456</Text>
-                </Text>
-              </View>
-            )}
+            <View style={styles.demoHint}>
+              <Ionicons name="information-circle" size={16} color={COLORS.gold} />
+              <Text style={styles.demoHintText}>
+                Demo: Use OTP <Text style={styles.demoCode}>123456</Text>
+              </Text>
+            </View>
+
+            {/* Bottom spacing */}
+            <View style={{ height: SPACING.xl }} />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -326,7 +304,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.xl,
   },
 
   // Orbs
@@ -354,12 +331,12 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -368,13 +345,13 @@ const styles = StyleSheet.create({
   // Icon
   iconContainer: {
     alignItems: 'center',
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.xl,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.lg,
   },
   iconGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -382,20 +359,20 @@ const styles = StyleSheet.create({
   // Title
   titleSection: {
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   subtitle: {
-    fontSize: FONT_SIZES.md,
+    fontSize: FONT_SIZES.sm,
     color: 'rgba(255,255,255,0.5)',
   },
   phoneNumber: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: COLORS.primary,
     marginTop: 4,
@@ -413,13 +390,11 @@ const styles = StyleSheet.create({
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xl,
+    gap: SPACING.xs,
+    marginBottom: SPACING.lg,
   },
   otpBox: {
-    width: (width - SPACING.xl * 2 - SPACING.sm * 5) / 6,
-    maxWidth: 52,
-    height: 60,
+    height: 54,
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 2,
@@ -435,7 +410,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   otpDigit: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.3)',
   },
@@ -445,7 +420,7 @@ const styles = StyleSheet.create({
   cursor: {
     position: 'absolute',
     width: 2,
-    height: 24,
+    height: 22,
     backgroundColor: COLORS.primary,
   },
 
@@ -454,7 +429,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
     gap: SPACING.xs,
   },
   errorText: {
@@ -466,17 +441,17 @@ const styles = StyleSheet.create({
   buttonContainer: {
     borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   verifyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.md + 2,
+    paddingVertical: SPACING.md,
     gap: SPACING.sm,
   },
   buttonText: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     fontWeight: '700',
     color: '#000',
   },
@@ -484,9 +459,9 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.35)',
   },
   buttonIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: 'rgba(0,0,0,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -500,7 +475,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   resendText: {
     fontSize: FONT_SIZES.sm,
