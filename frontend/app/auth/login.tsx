@@ -10,151 +10,106 @@ import {
   Dimensions,
   Animated,
   Easing,
-  Image,
   StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../src/components/theme';
 import { authAPI } from '../../src/services/api';
 
 const { width, height } = Dimensions.get('window');
 
-// Animated cricket ball component
-const FloatingBall = ({ delay, startX, startY }: { delay: number; startX: number; startY: number }) => {
-  const translateY = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
+// Animated particles
+const Particle = ({ delay, size, x, color }: any) => {
+  const translateY = useRef(new Animated.Value(height + 50)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.delay(delay),
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(translateY, {
-            toValue: -20,
-            duration: 3000 + delay,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateX, {
-            toValue: 10,
-            duration: 2500 + delay,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(translateY, {
-            toValue: 0,
-            duration: 3000 + delay,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateX, {
-            toValue: 0,
-            duration: 2500 + delay,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-        ]),
-      ])
-    ).start();
-  }, []);
-
-  return (
-    <Animated.View
-      style={[
-        styles.floatingBall,
-        {
-          left: startX,
-          top: startY,
-          opacity,
-          transform: [{ translateY }, { translateX }, { scale }],
-        },
-      ]}
-    >
-      <Text style={styles.ballEmoji}>🏏</Text>
-    </Animated.View>
-  );
-};
-
-// Glowing orb effect
-const GlowOrb = ({ color, size, x, y, delay }: any) => {
-  const scale = useRef(new Animated.Value(0.8)).current;
-  const opacity = useRef(new Animated.Value(0.3)).current;
-
-  useEffect(() => {
-    Animated.loop(
+    const animate = () => {
+      translateY.setValue(height + 50);
+      opacity.setValue(0);
+      
       Animated.sequence([
         Animated.delay(delay),
         Animated.parallel([
-          Animated.timing(scale, {
-            toValue: 1.2,
-            duration: 3000,
-            easing: Easing.inOut(Easing.ease),
+          Animated.timing(translateY, {
+            toValue: -50,
+            duration: 8000 + Math.random() * 4000,
+            easing: Easing.linear,
             useNativeDriver: true,
           }),
-          Animated.timing(opacity, {
-            toValue: 0.6,
-            duration: 3000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
+          Animated.sequence([
+            Animated.timing(opacity, {
+              toValue: 0.6,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.delay(5000),
+            Animated.timing(opacity, {
+              toValue: 0,
+              duration: 2000,
+              useNativeDriver: true,
+            }),
+          ]),
         ]),
-        Animated.parallel([
-          Animated.timing(scale, {
-            toValue: 0.8,
-            duration: 3000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0.3,
-            duration: 3000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ]),
-      ])
-    ).start();
+      ]).start(() => animate());
+    };
+    animate();
   }, []);
 
   return (
     <Animated.View
-      style={[
-        styles.glowOrb,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: color,
-          left: x,
-          top: y,
-          opacity,
-          transform: [{ scale }],
-        },
-      ]}
+      style={{
+        position: 'absolute',
+        left: x,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        opacity,
+        transform: [{ translateY }],
+      }}
     />
+  );
+};
+
+// Cricket ball with seam animation
+const CricketBall = () => {
+  const rotate = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+
+    Animated.loop(
+      Animated.timing(rotate, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
+
+  const spin = rotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <Animated.View style={[styles.cricketBall, { transform: [{ rotate: spin }, { scale }] }]}>
+      <View style={styles.ballInner}>
+        <Text style={styles.ballEmoji}>🏏</Text>
+      </View>
+      <View style={styles.ballSeam} />
+    </Animated.View>
   );
 };
 
@@ -167,76 +122,43 @@ export default function LoginScreen() {
   const inputRef = useRef<TextInput>(null);
 
   // Animations
-  const logoScale = useRef(new Animated.Value(0)).current;
-  const logoRotate = useRef(new Animated.Value(0)).current;
-  const contentOpacity = useRef(new Animated.Value(0)).current;
-  const contentTranslateY = useRef(new Animated.Value(30)).current;
-  const inputScale = useRef(new Animated.Value(1)).current;
-  const buttonPulse = useRef(new Animated.Value(1)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(-30)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslateY = useRef(new Animated.Value(50)).current;
+  const inputBorderWidth = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Logo entrance animation
     Animated.sequence([
-      Animated.spring(logoScale, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
+      Animated.delay(300),
       Animated.parallel([
-        Animated.timing(contentOpacity, {
+        Animated.timing(titleOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(titleTranslateY, {
+          toValue: 0,
+          tension: 50,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(formOpacity, {
           toValue: 1,
           duration: 600,
           useNativeDriver: true,
         }),
-        Animated.timing(contentTranslateY, {
+        Animated.spring(formTranslateY, {
           toValue: 0,
-          duration: 600,
-          easing: Easing.out(Easing.back(1.5)),
+          tension: 50,
+          friction: 8,
           useNativeDriver: true,
         }),
       ]),
     ]).start();
-
-    // Logo subtle rotation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(logoRotate, {
-          toValue: 1,
-          duration: 8000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoRotate, {
-          toValue: 0,
-          duration: 8000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
   }, []);
-
-  useEffect(() => {
-    if (phone.replace(/\D/g, '').length >= 9) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(buttonPulse, {
-            toValue: 1.02,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(buttonPulse, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    } else {
-      buttonPulse.setValue(1);
-    }
-  }, [phone]);
 
   const formatPhone = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
@@ -246,24 +168,23 @@ export default function LoginScreen() {
   };
 
   const handlePhoneChange = (text: string) => {
-    const formatted = formatPhone(text);
-    setPhone(formatted);
+    setPhone(formatPhone(text));
     setError('');
   };
 
   const handleFocus = () => {
     setFocused(true);
-    Animated.spring(inputScale, {
-      toValue: 1.02,
-      useNativeDriver: true,
+    Animated.spring(inputBorderWidth, {
+      toValue: 2,
+      useNativeDriver: false,
     }).start();
   };
 
   const handleBlur = () => {
     setFocused(false);
-    Animated.spring(inputScale, {
+    Animated.spring(inputBorderWidth, {
       toValue: 1,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   };
 
@@ -281,21 +202,13 @@ export default function LoginScreen() {
     try {
       const fullPhone = cleanPhone.startsWith('971') ? `+${cleanPhone}` : `+971${cleanPhone}`;
       await authAPI.requestOTP(fullPhone);
-      router.push({ 
-        pathname: '/auth/otp', 
-        params: { phone: fullPhone } 
-      });
+      router.push({ pathname: '/auth/otp', params: { phone: fullPhone } });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to send OTP. Please try again.');
+      setError(err.response?.data?.detail || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
   };
-
-  const logoRotation = logoRotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['-3deg', '3deg'],
-  });
 
   const isValid = phone.replace(/\D/g, '').length >= 9;
 
@@ -303,235 +216,184 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* Animated Background */}
+      {/* Gradient Background */}
       <LinearGradient
-        colors={['#0a0f1a', '#0d1929', '#0a1628']}
+        colors={['#0f172a', '#1e293b', '#0f172a']}
+        locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Glowing orbs */}
-      <GlowOrb color={COLORS.primary} size={300} x={-100} y={-50} delay={0} />
-      <GlowOrb color={COLORS.secondary} size={250} x={width - 80} y={height - 300} delay={1500} />
-      <GlowOrb color="#6366f1" size={200} x={width / 2 - 100} y={height / 2} delay={800} />
+      {/* Animated Particles */}
+      {[...Array(8)].map((_, i) => (
+        <Particle
+          key={i}
+          delay={i * 800}
+          size={4 + Math.random() * 4}
+          x={Math.random() * width}
+          color={i % 2 === 0 ? COLORS.primary : COLORS.gold}
+        />
+      ))}
 
-      {/* Floating elements */}
-      <FloatingBall delay={0} startX={50} startY={120} />
-      <FloatingBall delay={400} startX={width - 80} startY={180} />
-      <FloatingBall delay={800} startX={30} startY={height - 250} />
-
-      {/* Grid pattern overlay */}
-      <View style={styles.gridOverlay} />
+      {/* Gradient Orbs */}
+      <View style={[styles.orb, styles.orb1]} />
+      <View style={[styles.orb, styles.orb2]} />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
-          <View style={styles.content}>
-            {/* Logo Section */}
-            <Animated.View 
-              style={[
-                styles.logoSection,
-                { 
-                  transform: [
-                    { scale: logoScale },
-                    { rotate: logoRotation },
-                  ] 
-                }
-              ]}
-            >
-              <View style={styles.logoOuter}>
-                <LinearGradient
-                  colors={[COLORS.primary, '#00e676', COLORS.primary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.logoGradient}
-                >
-                  <View style={styles.logoInner}>
-                    <Text style={styles.logoEmoji}>🏏</Text>
-                  </View>
-                </LinearGradient>
+          {/* Header with Ball */}
+          <Animated.View 
+            style={[
+              styles.header,
+              { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] }
+            ]}
+          >
+            <CricketBall />
+            
+            <View style={styles.titleContainer}>
+              <Text style={styles.appName}>BATLABZ</Text>
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.gold]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.taglineGradient}
+              >
+                <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
+              </LinearGradient>
+            </View>
+          </Animated.View>
+
+          {/* Main Form */}
+          <Animated.View 
+            style={[
+              styles.formContainer,
+              { opacity: formOpacity, transform: [{ translateY: formTranslateY }] }
+            ]}
+          >
+            {/* Welcome Section */}
+            <View style={styles.welcomeSection}>
+              <View style={styles.welcomeRow}>
+                <Text style={styles.waveEmoji}>👋</Text>
+                <Text style={styles.welcomeText}>Welcome, Cricketer!</Text>
               </View>
+              <Text style={styles.subtitleText}>
+                Join UAE's premier cricket community
+              </Text>
+            </View>
+
+            {/* Phone Input Card */}
+            <View style={styles.inputCard}>
+              <Text style={styles.inputLabel}>MOBILE NUMBER</Text>
               
-              <View style={styles.titleContainer}>
-                <Text style={styles.appName}>BATLABZ</Text>
-                <View style={styles.taglineContainer}>
-                  <View style={styles.taglineLine} />
-                  <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
-                  <View style={styles.taglineLine} />
+              <Animated.View 
+                style={[
+                  styles.inputWrapper,
+                  focused && styles.inputWrapperFocused,
+                  error && styles.inputWrapperError,
+                ]}
+              >
+                <View style={styles.countrySection}>
+                  <Text style={styles.flag}>🇦🇪</Text>
+                  <Text style={styles.countryCode}>+971</Text>
                 </View>
-              </View>
-            </Animated.View>
-
-            {/* Main Content */}
-            <Animated.View 
-              style={[
-                styles.mainContent,
-                {
-                  opacity: contentOpacity,
-                  transform: [{ translateY: contentTranslateY }],
-                }
-              ]}
-            >
-              {/* Welcome Card */}
-              <View style={styles.welcomeCard}>
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']}
-                  style={styles.welcomeGradient}
-                >
-                  <Text style={styles.welcomeEmoji}>👋</Text>
-                  <Text style={styles.welcomeTitle}>Welcome, Player!</Text>
-                  <Text style={styles.welcomeText}>
-                    Join thousands of cricket enthusiasts. Schedule matches, book grounds, and split costs effortlessly.
-                  </Text>
-                </LinearGradient>
-              </View>
-
-              {/* Phone Input */}
-              <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>ENTER YOUR PHONE NUMBER</Text>
                 
-                <Animated.View style={{ transform: [{ scale: inputScale }] }}>
-                  <TouchableOpacity 
-                    activeOpacity={1}
-                    style={[
-                      styles.inputContainer,
-                      focused && styles.inputContainerFocused,
-                      error && styles.inputContainerError,
-                    ]}
-                    onPress={() => inputRef.current?.focus()}
-                  >
-                    <LinearGradient
-                      colors={focused 
-                        ? ['rgba(0,200,83,0.15)', 'rgba(0,200,83,0.05)']
-                        : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
-                      style={styles.inputGradient}
-                    >
-                      <View style={styles.countryCode}>
-                        <Text style={styles.flag}>🇦🇪</Text>
-                        <Text style={styles.countryCodeText}>+971</Text>
-                        <View style={styles.countryDivider} />
-                      </View>
-                      <TextInput
-                        ref={inputRef}
-                        style={styles.input}
-                        value={phone}
-                        onChangeText={handlePhoneChange}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                        placeholder="50 123 4567"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
-                        keyboardType="phone-pad"
-                        maxLength={11}
-                      />
-                      {isValid && (
-                        <View style={styles.validIcon}>
-                          <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
-                        </View>
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </Animated.View>
-
-                {error ? (
-                  <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle" size={16} color={COLORS.error} />
-                    <Text style={styles.errorText}>{error}</Text>
+                <View style={styles.divider} />
+                
+                <TextInput
+                  ref={inputRef}
+                  style={styles.phoneInput}
+                  value={phone}
+                  onChangeText={handlePhoneChange}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                  placeholder="50 123 4567"
+                  placeholderTextColor="rgba(255,255,255,0.25)"
+                  keyboardType="phone-pad"
+                  maxLength={11}
+                />
+                
+                {isValid && (
+                  <View style={styles.checkIcon}>
+                    <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
                   </View>
-                ) : (
-                  <Text style={styles.inputHint}>
-                    We'll send you a verification code
-                  </Text>
                 )}
-              </View>
-
-              {/* Continue Button */}
-              <Animated.View style={{ transform: [{ scale: buttonPulse }] }}>
-                <TouchableOpacity
-                  onPress={handleContinue}
-                  disabled={!isValid || loading}
-                  activeOpacity={0.9}
-                  style={styles.buttonWrapper}
-                >
-                  <LinearGradient
-                    colors={isValid 
-                      ? [COLORS.primary, '#00e676', COLORS.primary]
-                      : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[
-                      styles.continueButton,
-                      !isValid && styles.continueButtonDisabled,
-                    ]}
-                  >
-                    {loading ? (
-                      <View style={styles.loadingDots}>
-                        <Text style={styles.loadingText}>Sending OTP</Text>
-                        <Text style={styles.loadingDotsText}>...</Text>
-                      </View>
-                    ) : (
-                      <>
-                        <Text style={[
-                          styles.continueButtonText,
-                          !isValid && styles.continueButtonTextDisabled,
-                        ]}>
-                          Continue
-                        </Text>
-                        <View style={[
-                          styles.buttonArrow,
-                          !isValid && styles.buttonArrowDisabled,
-                        ]}>
-                          <Ionicons 
-                            name="arrow-forward" 
-                            size={20} 
-                            color={isValid ? '#000' : 'rgba(255,255,255,0.3)'} 
-                          />
-                        </View>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
               </Animated.View>
 
-              {/* Terms */}
-              <Text style={styles.terms}>
-                By continuing, you agree to our{' '}
-                <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-                <Text style={styles.termsLink}>Privacy Policy</Text>
-              </Text>
-            </Animated.View>
-          </View>
+              {error ? (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={14} color={COLORS.error} />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : (
+                <Text style={styles.hintText}>We'll send a verification code via SMS</Text>
+              )}
+            </View>
+
+            {/* Continue Button */}
+            <TouchableOpacity
+              onPress={handleContinue}
+              disabled={!isValid || loading}
+              activeOpacity={0.85}
+              style={styles.buttonContainer}
+            >
+              <LinearGradient
+                colors={isValid 
+                  ? [COLORS.primary, '#00e676']
+                  : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.continueButton}
+              >
+                {loading ? (
+                  <Text style={styles.buttonText}>Sending...</Text>
+                ) : (
+                  <>
+                    <Text style={[
+                      styles.buttonText,
+                      !isValid && styles.buttonTextDisabled
+                    ]}>
+                      Get Started
+                    </Text>
+                    <View style={[
+                      styles.buttonIcon,
+                      !isValid && styles.buttonIconDisabled
+                    ]}>
+                      <Ionicons 
+                        name="arrow-forward" 
+                        size={18} 
+                        color={isValid ? '#000' : 'rgba(255,255,255,0.3)'} 
+                      />
+                    </View>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Terms */}
+            <Text style={styles.termsText}>
+              By continuing, you agree to our{' '}
+              <Text style={styles.termsLink}>Terms</Text> &{' '}
+              <Text style={styles.termsLink}>Privacy Policy</Text>
+            </Text>
+          </Animated.View>
 
           {/* Bottom Features */}
-          <View style={styles.featuresSection}>
-            <View style={styles.featureCard}>
-              <View style={[styles.featureIcon, { backgroundColor: 'rgba(0,200,83,0.15)' }]}>
-                <Ionicons name="calendar" size={22} color={COLORS.primary} />
+          <View style={styles.featuresContainer}>
+            {[
+              { icon: 'calendar', label: 'Schedule', color: COLORS.primary },
+              { icon: 'wallet', label: 'Pay & Split', color: COLORS.gold },
+              { icon: 'location', label: 'Book', color: COLORS.secondary },
+              { icon: 'trophy', label: 'Compete', color: '#a855f7' },
+            ].map((item, index) => (
+              <View key={index} style={styles.featureItem}>
+                <View style={[styles.featureIconBg, { backgroundColor: item.color + '20' }]}>
+                  <Ionicons name={item.icon as any} size={20} color={item.color} />
+                </View>
+                <Text style={styles.featureLabel}>{item.label}</Text>
               </View>
-              <Text style={styles.featureTitle}>Schedule</Text>
-              <Text style={styles.featureText}>Matches</Text>
-            </View>
-            <View style={styles.featureCard}>
-              <View style={[styles.featureIcon, { backgroundColor: 'rgba(255,215,0,0.15)' }]}>
-                <Ionicons name="wallet" size={22} color={COLORS.gold} />
-              </View>
-              <Text style={styles.featureTitle}>Split</Text>
-              <Text style={styles.featureText}>Costs</Text>
-            </View>
-            <View style={styles.featureCard}>
-              <View style={[styles.featureIcon, { backgroundColor: 'rgba(255,109,0,0.15)' }]}>
-                <Ionicons name="location" size={22} color={COLORS.secondary} />
-              </View>
-              <Text style={styles.featureTitle}>Book</Text>
-              <Text style={styles.featureText}>Grounds</Text>
-            </View>
-            <View style={styles.featureCard}>
-              <View style={[styles.featureIcon, { backgroundColor: 'rgba(99,102,241,0.15)' }]}>
-                <Ionicons name="people" size={22} color="#6366f1" />
-              </View>
-              <Text style={styles.featureTitle}>Team</Text>
-              <Text style={styles.featureText}>Management</Text>
-            </View>
+            ))}
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -542,7 +404,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0f1a',
+    backgroundColor: '#0f172a',
   },
   safeArea: {
     flex: 1,
@@ -551,202 +413,195 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: SPACING.xl,
-    justifyContent: 'center',
-  },
 
-  // Grid overlay
-  gridOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.03,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-
-  // Floating elements
-  floatingBall: {
+  // Orbs
+  orb: {
     position: 'absolute',
-    zIndex: 1,
+    borderRadius: 999,
+  },
+  orb1: {
+    width: 400,
+    height: 400,
+    top: -150,
+    right: -150,
+    backgroundColor: COLORS.primary,
+    opacity: 0.08,
+  },
+  orb2: {
+    width: 300,
+    height: 300,
+    bottom: 100,
+    left: -100,
+    backgroundColor: COLORS.gold,
+    opacity: 0.06,
+  },
+
+  // Header
+  header: {
+    alignItems: 'center',
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
+  },
+  cricketBall: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#1e293b',
+    borderWidth: 3,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  ballInner: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ballEmoji: {
-    fontSize: 32,
-    opacity: 0.6,
+    fontSize: 40,
   },
-
-  // Glow orbs
-  glowOrb: {
+  ballSeam: {
     position: 'absolute',
-    opacity: 0.3,
-    zIndex: 0,
-  },
-
-  // Logo
-  logoSection: {
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-  },
-  logoOuter: {
-    padding: 4,
-    borderRadius: 32,
-    marginBottom: SPACING.lg,
-  },
-  logoGradient: {
-    width: 100,
-    height: 100,
-    borderRadius: 28,
-    padding: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoInner: {
     width: '100%',
-    height: '100%',
-    borderRadius: 25,
-    backgroundColor: '#0d1929',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoEmoji: {
-    fontSize: 48,
+    height: 2,
+    backgroundColor: COLORS.primary,
+    opacity: 0.3,
   },
   titleContainer: {
     alignItems: 'center',
   },
   appName: {
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '900',
     color: '#fff',
-    letterSpacing: 6,
-    textShadowColor: COLORS.primary,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 20,
+    letterSpacing: 8,
   },
-  taglineContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  taglineGradient: {
     marginTop: SPACING.sm,
-    gap: SPACING.sm,
-  },
-  taglineLine: {
-    width: 30,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
   },
   tagline: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 3,
-    fontWeight: '500',
-  },
-
-  // Main content
-  mainContent: {},
-
-  // Welcome card
-  welcomeCard: {
-    marginBottom: SPACING.xl,
-    borderRadius: BORDER_RADIUS.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  welcomeGradient: {
-    padding: SPACING.lg,
-    alignItems: 'center',
-  },
-  welcomeEmoji: {
-    fontSize: 36,
-    marginBottom: SPACING.sm,
-  },
-  welcomeTitle: {
-    fontSize: FONT_SIZES.xl,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#fff',
+    color: '#000',
+    letterSpacing: 2,
+  },
+
+  // Form
+  formContainer: {
+    paddingHorizontal: SPACING.xl,
+  },
+  welcomeSection: {
+    marginBottom: SPACING.xl,
+  },
+  welcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: SPACING.xs,
   },
+  waveEmoji: {
+    fontSize: 28,
+    marginRight: SPACING.sm,
+  },
   welcomeText: {
-    fontSize: FONT_SIZES.sm,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  subtitleText: {
+    fontSize: FONT_SIZES.md,
+    color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
-    lineHeight: 20,
   },
 
-  // Input
-  inputSection: {
+  // Input Card
+  inputCard: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.lg,
     marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   inputLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.5)',
-    marginBottom: SPACING.sm,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.4)',
     letterSpacing: 1.5,
+    marginBottom: SPACING.sm,
   },
-  inputContainer: {
-    borderRadius: BORDER_RADIUS.xl,
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
-  inputContainerFocused: {
+  inputWrapperFocused: {
     borderColor: COLORS.primary,
+    backgroundColor: 'rgba(0,200,83,0.05)',
   },
-  inputContainerError: {
+  inputWrapperError: {
     borderColor: COLORS.error,
   },
-  inputGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: SPACING.md,
-  },
-  countryCode: {
+  countrySection: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md + 4,
+    paddingVertical: SPACING.md,
   },
   flag: {
-    fontSize: 22,
-    marginRight: SPACING.xs,
+    fontSize: 20,
+    marginRight: 6,
   },
-  countryCodeText: {
-    fontSize: FONT_SIZES.lg,
-    color: 'rgba(255,255,255,0.7)',
+  countryCode: {
+    fontSize: FONT_SIZES.md,
     fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
   },
-  countryDivider: {
+  divider: {
     width: 1,
-    height: 24,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginLeft: SPACING.md,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  input: {
+  phoneInput: {
     flex: 1,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md + 4,
-    fontSize: 22,
-    color: '#fff',
-    letterSpacing: 2,
+    fontSize: 20,
     fontWeight: '500',
+    color: '#fff',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    letterSpacing: 1,
   },
-  validIcon: {
-    marginLeft: SPACING.sm,
+  checkIcon: {
+    paddingRight: SPACING.md,
   },
-  inputHint: {
+  hintText: {
     fontSize: FONT_SIZES.xs,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
-  errorContainer: {
+  errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: SPACING.sm,
     justifyContent: 'center',
-    gap: SPACING.xs,
+    marginTop: SPACING.sm,
+    gap: 4,
   },
   errorText: {
     fontSize: FONT_SIZES.sm,
@@ -754,99 +609,73 @@ const styles = StyleSheet.create({
   },
 
   // Button
-  buttonWrapper: {
+  buttonContainer: {
     borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
+    marginBottom: SPACING.md,
   },
   continueButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.md + 4,
-    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md + 2,
     gap: SPACING.sm,
   },
-  continueButtonDisabled: {
-    opacity: 0.6,
-  },
-  continueButtonText: {
+  buttonText: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
     color: '#000',
-    letterSpacing: 0.5,
   },
-  continueButtonTextDisabled: {
-    color: 'rgba(255,255,255,0.4)',
+  buttonTextDisabled: {
+    color: 'rgba(255,255,255,0.35)',
   },
-  buttonArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+  buttonIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonArrowDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  loadingDots: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: '#000',
-  },
-  loadingDotsText: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: '#000',
+  buttonIconDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
 
   // Terms
-  terms: {
+  termsText: {
     fontSize: FONT_SIZES.xs,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
-    marginTop: SPACING.lg,
     lineHeight: 18,
   },
   termsLink: {
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 
   // Features
-  featuresSection: {
+  featuresContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderTopColor: 'rgba(255,255,255,0.05)',
   },
-  featureCard: {
+  featureItem: {
     alignItems: 'center',
-    flex: 1,
   },
-  featureIcon: {
+  featureIconBg: {
     width: 44,
     height: 44,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.xs,
+    marginBottom: 6,
   },
-  featureTitle: {
-    fontSize: FONT_SIZES.xs,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  featureText: {
+  featureLabel: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 1,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
   },
 });
