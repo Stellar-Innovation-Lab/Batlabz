@@ -1214,6 +1214,131 @@ async def export_transactions(start_date: Optional[str] = None, end_date: Option
         }
     }
 
+# ==================== MOCK E& MONEY WALLET ROUTES ====================
+
+class EMoneyAuthRequest(BaseModel):
+    phone: str
+    pin: str = "1234"  # Mock PIN
+
+class EMoneyTopupRequest(BaseModel):
+    amount: float
+    account_type: str = "savings"  # savings, current
+    authorization_code: str
+
+class EMoneyPayoutRequest(BaseModel):
+    amount: float
+    account_type: str = "savings"
+    iban: Optional[str] = None
+
+@api_router.post("/wallet/emoney/authorize")
+async def emoney_authorize(request: EMoneyAuthRequest, current_user: User = Depends(get_current_user)):
+    """Mock e& money authorization flow"""
+    # Simulate authorization process
+    if request.pin != "1234":
+        raise HTTPException(status_code=400, detail="Invalid PIN")
+    
+    authorization_code = str(uuid.uuid4())[:12].upper()
+    
+    return {
+        "success": True,
+        "authorization_code": authorization_code,
+        "account_name": current_user.name or "User",
+        "account_number": f"****{current_user.phone[-4:]}",
+        "balance": 10000.0,  # Mock balance
+        "message": "Authorization successful"
+    }
+
+@api_router.post("/wallet/emoney/topup")
+async def emoney_topup(request: EMoneyTopupRequest, current_user: User = Depends(get_current_user)):
+    """Mock e& money top-up with realistic flow"""
+    if request.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    
+    if request.amount > 50000:
+        raise HTTPException(status_code=400, detail="Amount exceeds limit of AED 50,000")
+    
+    # Calculate gateway fee
+    gateway_fee = max(PAYOUT_FEE_FLAT, request.amount * PAYOUT_FEE_PERCENT / 100)
+    total_charge = request.amount + gateway_fee
+    
+    fee_breakdown = FeeBreakdown(
+        platform_fee=0.0,
+        payout_fee=0.0,
+        gateway_fee=gateway_fee,
+        total_fees=gateway_fee,
+        net_amount=request.amount
+    )
+    
+    # Credit wallet
+    new_balance = current_user.wallet_balance + request.amount
+    transaction = WalletTransaction(
+        user_id=current_user.id, 
+        type=TransactionType.TOPUP, 
+        amount=request.amount, 
+        balance_after=new_balance, 
+        description=f"e& money top-up via {request.account_type} account",
+        fee_breakdown=fee_breakdown
+    )
+    await db.wallet_transactions.insert_one(transaction.dict())
+    await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_balance}})
+    
+    return {
+        "success": True,
+        "message": "Top-up successful",
+        "amount_credited": request.amount,
+        "gateway_fee": gateway_fee,
+        "total_charged": total_charge,
+        "new_balance": new_balance,
+        "transaction_id": transaction.id,
+        "reference_number": f"ETM{transaction.id[:8].upper()}"
+    }
+
+@api_router.post("/wallet/emoney/payout")
+async def emoney_payout(request: EMoneyPayoutRequest, current_user: User = Depends(get_current_user)):
+    """Mock e& money withdrawal with realistic flow"""
+    if request.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    
+    # Calculate payout fee
+    payout_fee = max(PAYOUT_FEE_FLAT, request.amount * PAYOUT_FEE_PERCENT / 100)
+    total_deduction = request.amount + payout_fee
+    
+    if current_user.wallet_balance < total_deduction:
+        raise HTTPException(status_code=400, detail=f"Insufficient balance. Required: AED {total_deduction:.2f} (Amount: {request.amount:.2f} + Fee: {payout_fee:.2f})")
+    
+    fee_breakdown = FeeBreakdown(
+        platform_fee=0.0,
+        payout_fee=payout_fee,
+        gateway_fee=0.0,
+        total_fees=payout_fee,
+        net_amount=request.amount
+    )
+    
+    # Debit wallet
+    new_balance = current_user.wallet_balance - total_deduction
+    transaction = WalletTransaction(
+        user_id=current_user.id, 
+        type=TransactionType.WITHDRAWAL, 
+        amount=-total_deduction, 
+        balance_after=new_balance, 
+        description=f"Withdrawal to e& money {request.account_type} account",
+        fee_breakdown=fee_breakdown
+    )
+    await db.wallet_transactions.insert_one(transaction.dict())
+    await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_balance}})
+    
+    return {
+        "success": True,
+        "message": "Payout initiated successfully",
+        "amount_withdrawn": request.amount,
+        "payout_fee": payout_fee,
+        "total_deducted": total_deduction,
+        "new_balance": new_balance,
+        "transaction_id": transaction.id,
+        "reference_number": f"EPO{transaction.id[:8].upper()}",
+        "estimated_arrival": "1-2 business days"
+    }
+
 # ==================== GROUND ROUTES ====================
 
 @api_router.post("/grounds")
