@@ -28,9 +28,17 @@ export default function EMoneyTopupScreen() {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('auth_token');
+      
+      if (!token) {
+        Alert.alert('Error', 'Please login again');
+        return;
+      }
+      
+      console.log('Authorizing with PIN:', pin);
+      
       const response = await axios.post(
         `${BACKEND_URL}/api/wallet/emoney/authorize`,
-        { phone: '', pin },
+        { phone: '', pin: pin },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -40,7 +48,9 @@ export default function EMoneyTopupScreen() {
       // Simulate processing
       setTimeout(() => handleTopup(response.data.authorization_code), 1500);
     } catch (error: any) {
-      Alert.alert('Authorization Failed', error.response?.data?.detail || 'Invalid PIN');
+      console.error('Auth error:', error);
+      const errorMsg = error.response?.data?.detail || error.message || 'Authorization failed';
+      Alert.alert('Authorization Failed', errorMsg + '\n\nTip: Use PIN 1234 for demo');
     } finally {
       setLoading(false);
     }
