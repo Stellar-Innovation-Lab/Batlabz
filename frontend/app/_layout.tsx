@@ -49,6 +49,7 @@ export default function RootLayout() {
         <Stack.Screen name="wallet/transactions" options={{ presentation: 'card' }} />
         <Stack.Screen name="wallet/enhanced-transactions" options={{ presentation: 'card' }} />
         <Stack.Screen name="wallet/emoney-topup" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="wallet/payout" options={{ presentation: 'modal' }} />
         
         {/* Player Screens */}
         <Stack.Screen name="players/index" options={{ presentation: 'card' }} />
