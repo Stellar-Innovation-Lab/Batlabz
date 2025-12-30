@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Batlabz - Expo Go QR Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            margin-bottom: 10px;
+            color: #4ade80;
+        }
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 30px;
+        }
+        #qrcode {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        .url-box {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        .instructions {
+            margin-top: 30px;
+            text-align: left;
+            max-width: 500px;
+        }
+        .step {
+            margin: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        .step:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #4ade80;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🏏 Batlabz</h1>
+        <p class="subtitle">Scan to open in Expo Go</p>
+        
+        <div id="qrcode"></div>
+        
+        <div class="url-box">
+            <strong>Tunnel URL:</strong><br>
+            <span id="tunnel-url">Loading...</span>
+        </div>
+        
+        <div class="instructions">
+            <h3>📱 How to test on your phone:</h3>
+            <div class="step">Download "Expo Go" app from App Store or Google Play</div>
+            <div class="step">Open Expo Go app</div>
+            <div class="step">Scan this QR code with the app</div>
+            <div class="step">Batlabz will load on your phone!</div>
+        </div>
+        
+        <div style="margin-top: 30px; color: #94a3b8; font-size: 14px;">
+            Web Preview: <a href="https://cricket-payments-1.preview.emergentagent.com" style="color: #4ade80;">cricket-payments-1.preview.emergentagent.com</a>
+        </div>
+    </div>
+    
+    <script>
+        // Get the tunnel URL from environment
+        const tunnelUrl = 'exp://cricket-payments-1.preview.emergentagent.com';
+        document.getElementById('tunnel-url').textContent = tunnelUrl;
+        
+        // Generate QR code
+        new QRCode(document.getElementById("qrcode"), {
+            text: tunnelUrl,
+            width: 256,
+            height: 256,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    </script>
+</body>
+</html>
