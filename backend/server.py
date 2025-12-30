@@ -1015,14 +1015,37 @@ async def pay_for_match(request: PayMatchRequest, current_user: User = Depends(g
     if payment_amount > amount_remaining:
         payment_amount = amount_remaining
     
+    # Calculate fees
+    platform_fee = PLATFORM_FEE_PER_PLAYER  # AED 1 per player
+    gateway_fee = max(PAYOUT_FEE_FLAT, payment_amount * PAYOUT_FEE_PERCENT / 100)  # 5 AED or 1.5%
+    total_fees = platform_fee + gateway_fee
+    total_charge = payment_amount + total_fees
+    net_amount = payment_amount
+    
+    fee_breakdown = FeeBreakdown(
+        platform_fee=platform_fee,
+        payout_fee=0.0,
+        gateway_fee=gateway_fee,
+        total_fees=total_fees,
+        net_amount=net_amount
+    )
+    
     if request.use_wallet:
-        if current_user.wallet_balance < payment_amount:
-            raise HTTPException(status_code=400, detail="Insufficient wallet balance")
+        if current_user.wallet_balance < total_charge:
+            raise HTTPException(status_code=400, detail=f"Insufficient balance. Required: AED {total_charge:.2f} (Payment: {payment_amount:.2f} + Fees: {total_fees:.2f})")
         
-        new_balance = current_user.wallet_balance - payment_amount
-        transaction = WalletTransaction(user_id=current_user.id, type=TransactionType.MATCH_PAYMENT, amount=-payment_amount, balance_after=new_balance, description=f"Payment for match: {match_data['title']}", reference_id=request.match_id)
+        new_balance = current_user.wallet_balance - total_charge
+        transaction = WalletTransaction(
+            user_id=current_user.id, 
+            type=TransactionType.MATCH_PAYMENT, 
+            amount=-total_charge, 
+            balance_after=new_balance, 
+            description=f"Payment for match: {match_data['title']} (incl. fees)", 
+            reference_id=request.match_id,
+            fee_breakdown=fee_breakdown
+        )
         await db.wallet_transactions.insert_one(transaction.dict())
-        await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_balance}, "$inc": {"total_spent": payment_amount}})
+        await db.users.update_one({"id": current_user.id}, {"$set": {"wallet_balance": new_balance}, "$inc": {"total_spent": total_charge}})
     
     new_paid = player_payment.get("amount_paid", 0) + payment_amount
     new_status = PaymentStatus.PAID if new_paid >= player_payment["amount_due"] else PaymentStatus.PARTIAL
@@ -1045,7 +1068,15 @@ async def pay_for_match(request: PayMatchRequest, current_user: User = Depends(g
     if all_paid and match_data.get("player_payments"):
         await db.matches.update_one({"id": request.match_id}, {"$set": {"status": MatchStatus.READY_TO_PLAY}})
     
-    return {"message": "Payment successful", "amount_paid": payment_amount, "total_paid": new_paid, "amount_remaining": player_payment["amount_due"] - new_paid, "status": new_status}
+    return {
+        "message": "Payment successful", 
+        "amount_paid": payment_amount, 
+        "total_charged": total_charge,
+        "fees": fee_breakdown.dict(),
+        "total_paid": new_paid, 
+        "amount_remaining": player_payment["amount_due"] - new_paid, 
+        "status": new_status
+    }
 
 @api_router.get("/wallet/export")
 async def export_transactions(start_date: Optional[str] = None, end_date: Optional[str] = None, current_user: User = Depends(get_current_user)):
