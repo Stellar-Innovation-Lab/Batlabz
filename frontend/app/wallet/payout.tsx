@@ -24,7 +24,7 @@ export default function PayoutScreen() {
 
   const fetchBalance = async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await axios.get(`${BACKEND_URL}/api/wallet/balance`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -46,7 +46,7 @@ export default function PayoutScreen() {
     setStep('processing');
 
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await axios.post(
         `${BACKEND_URL}/api/wallet/emoney/payout`,
         {

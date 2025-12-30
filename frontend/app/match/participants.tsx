@@ -49,7 +49,7 @@ export default function MatchParticipantsScreen() {
 
   const fetchParticipants = async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('auth_token');
       if (!token) return;
 
       const response = await axios.get(`${BACKEND_URL}/api/matches/${id}/participants`, {

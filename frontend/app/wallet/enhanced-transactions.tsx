@@ -37,7 +37,7 @@ export default function EnhancedTransactionsScreen() {
 
   const fetchTransactions = async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('auth_token');
       if (!token) {
         router.replace('/auth/login');
         return;

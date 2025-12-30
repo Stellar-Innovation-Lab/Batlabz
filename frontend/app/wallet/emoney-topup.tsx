@@ -27,7 +27,7 @@ export default function EMoneyTopupScreen() {
 
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await axios.post(
         `${BACKEND_URL}/api/wallet/emoney/authorize`,
         { phone: '', pin },
@@ -48,7 +48,7 @@ export default function EMoneyTopupScreen() {
 
   const handleTopup = async (code: string) => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await axios.post(
         `${BACKEND_URL}/api/wallet/emoney/topup`,
         {

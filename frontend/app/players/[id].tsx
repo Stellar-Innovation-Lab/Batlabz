@@ -43,7 +43,7 @@ export default function PlayerDetailScreen() {
 
   const fetchPlayerDetail = async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('auth_token');
       if (!token) return;
 
       const response = await axios.get(`${BACKEND_URL}/api/players/${id}`, {
@@ -60,7 +60,7 @@ export default function PlayerDetailScreen() {
 
   const handleActivateDeactivate = async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('auth_token');
       const endpoint = playerData?.player.is_active ? 'deactivate' : 'activate';
       
       await axios.post(`${BACKEND_URL}/api/players/${id}/${endpoint}`, {}, {
