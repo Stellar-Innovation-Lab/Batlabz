@@ -121,10 +121,7 @@ export default function EMoneyTopupScreen() {
 
       {/* Fee Info */}
       {amount && parseFloat(amount) > 0 && (
-        <Animated.View
-          entering={FadeInDown.duration(300)}
-          style={styles.feeInfoCard}
-        >
+        <View style={styles.feeInfoCard}>
           <View style={styles.feeRow}>
             <Text style={styles.feeLabel}>Top-up Amount</Text>
             <Text style={styles.feeValue}>AED {parseFloat(amount).toFixed(2)}</Text>
@@ -141,7 +138,7 @@ export default function EMoneyTopupScreen() {
               AED {(parseFloat(amount) + Math.max(5, parseFloat(amount) * 0.015)).toFixed(2)}
             </Text>
           </View>
-        </Animated.View>
+        </View>
       )}
 
       {/* Continue Button */}
