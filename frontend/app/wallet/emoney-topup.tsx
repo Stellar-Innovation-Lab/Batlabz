@@ -219,7 +219,7 @@ export default function EMoneyTopupScreen() {
         <ActivityIndicator size="large" color="#4ade80" />
         <Text style={styles.processingText}>Processing...</Text>
         <Text style={styles.processingSubtext}>Please wait while we process your top-up</Text>
-      </MotiView>
+      </Animated.View>
     </View>
   );
 
