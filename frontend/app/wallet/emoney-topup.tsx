@@ -225,10 +225,8 @@ export default function EMoneyTopupScreen() {
 
   const renderSuccessStep = () => (
     <View style={styles.stepContainer}>
-      <MotiView
-        from={{ scale: 0, rotate: '-180deg' }}
-        animate={{ scale: 1, rotate: '0deg' }}
-        transition={{ type: 'timing', duration: 500 }}
+      <Animated.View
+        entering={FadeIn.duration(500)}
         style={styles.successIcon}
       >
         <Ionicons name="checkmark-circle" size={80} color="#4ade80" />
