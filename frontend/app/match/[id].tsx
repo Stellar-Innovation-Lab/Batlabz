@@ -729,6 +729,31 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   playerCard: {
+  captainActionsCard: {
+    marginBottom: SPACING.lg,
+    padding: SPACING.lg,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    backgroundColor: COLORS.glass,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    marginBottom: SPACING.sm,
+  },
+  actionButtonSuccess: {
+    backgroundColor: 'rgba(74, 222, 128, 0.1)',
+    borderColor: COLORS.success,
+  },
+  actionButtonText: {
+    flex: 1,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    marginLeft: SPACING.sm,
+  },
+
     marginBottom: SPACING.xs,
     padding: SPACING.sm,
   },
