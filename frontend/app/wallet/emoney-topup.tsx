@@ -30,27 +30,46 @@ export default function EMoneyTopupScreen() {
       const token = await AsyncStorage.getItem('auth_token');
       
       if (!token) {
-        Alert.alert('Error', 'Please login again');
+        Alert.alert('Session Expired', 'Please login again');
+        setLoading(false);
         return;
       }
       
-      console.log('Authorizing with PIN:', pin);
+      console.log('[e& Money] Authorizing with PIN:', pin);
+      console.log('[e& Money] Backend URL:', BACKEND_URL);
+      console.log('[e& Money] Token exists:', !!token);
       
       const response = await axios.post(
         `${BACKEND_URL}/api/wallet/emoney/authorize`,
-        { phone: '', pin: pin },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { phone: '', pin: pin.trim() },
+        { 
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000
+        }
       );
 
+      console.log('[e& Money] Authorization successful');
       setAuthCode(response.data.authorization_code);
       setStep('processing');
       
       // Simulate processing
       setTimeout(() => handleTopup(response.data.authorization_code), 1500);
     } catch (error: any) {
-      console.error('Auth error:', error);
-      const errorMsg = error.response?.data?.detail || error.message || 'Authorization failed';
-      Alert.alert('Authorization Failed', errorMsg + '\n\nTip: Use PIN 1234 for demo');
+      console.error('[e& Money] Authorization error:', error);
+      
+      let errorMsg = 'Authorization failed';
+      
+      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+        errorMsg = 'Network error. Please check your connection.';
+      } else if (error.response) {
+        errorMsg = error.response.data?.detail || `Server error (${error.response.status})`;
+      } else if (error.request) {
+        errorMsg = 'No response from server. Please try again.';
+      } else {
+        errorMsg = error.message || 'Unknown error';
+      }
+      
+      Alert.alert('Authorization Failed', `${errorMsg}\n\n💡 Tip: Use PIN 1234 for demo`);
     } finally {
       setLoading(false);
     }
