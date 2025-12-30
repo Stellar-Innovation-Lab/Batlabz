@@ -3173,6 +3173,210 @@ async def refund_ground_booking(booking_id: str, current_user: User = Depends(ge
 # Include router
 app.include_router(api_router)
 
+# ==================== DEMO DATA SEEDER ====================
+
+@api_router.post("/demo/seed")
+async def seed_demo_data(current_user: User = Depends(get_current_user)):
+    """Seed comprehensive demo data for impressive demos"""
+    
+    # Clear existing demo data (optional - can be guarded)
+    # await db.users.delete_many({"phone": {"$regex": "^\\+97150"}})
+    
+    demo_users = []
+    
+    # Create Captain
+    captain = User(
+        id="demo-captain-1",
+        phone="+971501234567",
+        name="Ahmed Al Maktoum",
+        email="ahmed@batlabz.ae",
+        role=UserRole.CAPTAIN,
+        playing_role=PlayingRole.ALL_ROUNDER,
+        wallet_balance=5000.0,
+        total_spent=3200.0,
+        is_active=True
+    )
+    demo_users.append(captain)
+    
+    # Create Players with cricket-appropriate names and stats
+    player_names = [
+        ("Rashid Khan", PlayingRole.BOWLER, 2500.0, 1800.0),
+        ("Virat Sharma", PlayingRole.BATSMAN, 3200.0, 2400.0),
+        ("Jos Butler", PlayingRole.WICKET_KEEPER, 2800.0, 1600.0),
+        ("Jasprit Singh", PlayingRole.BOWLER, 2100.0, 900.0),
+        ("Mohammed Ali", PlayingRole.ALL_ROUNDER, 3500.0, 2800.0),
+        ("David Warner", PlayingRole.BATSMAN, 4200.0, 3100.0),
+        ("Chris Gayle", PlayingRole.ALL_ROUNDER, 3800.0, 2600.0),
+        ("Lasith Kumar", PlayingRole.BOWLER, 1900.0, 800.0),
+        ("Kane Smith", PlayingRole.BATSMAN, 2600.0, 1400.0),
+        ("Ben Stokes", PlayingRole.ALL_ROUNDER, 3100.0, 2200.0),
+        ("Quinton Hassan", PlayingRole.WICKET_KEEPER, 2400.0, 1200.0),
+        ("Shakib Rahman", PlayingRole.ALL_ROUNDER, 2900.0, 1900.0),
+    ]
+    
+    for i, (name, role, balance, spent) in enumerate(player_names):
+        player = User(
+            id=f"demo-player-{i+1}",
+            phone=f"+97150111{1000+i}",
+            name=name,
+            email=f"{name.lower().replace(' ', '.')}@cricket.ae",
+            role=UserRole.PLAYER,
+            playing_role=role,
+            wallet_balance=balance,
+            total_spent=spent,
+            is_active=True
+        )
+        demo_users.append(player)
+    
+    # Insert users
+    for user in demo_users:
+        await db.users.update_one(
+            {"id": user.id"},
+            {"$set": user.dict()},
+            upsert=True
+        )
+    
+    # Create Teams
+    team1 = Team(
+        id="demo-team-1",
+        name="Dubai Warriors",
+        captain_id=captain.id,
+        player_ids=[captain.id, "demo-player-1", "demo-player-2", "demo-player-3", "demo-player-4", "demo-player-5"],
+        pool_balance=800.0,
+        total_matches=12,
+        wins=7,
+        losses=5
+    )
+    
+    team2 = Team(
+        id="demo-team-2",
+        name="Sharjah Strikers",
+        captain_id="demo-player-6",
+        player_ids=["demo-player-6", "demo-player-7", "demo-player-8", "demo-player-9", "demo-player-10"],
+        pool_balance=450.0,
+        total_matches=8,
+        wins=4,
+        losses=4
+    )
+    
+    await db.teams.update_one({"id": team1.id}, {"$set": team1.dict()}, upsert=True)
+    await db.teams.update_one({"id": team2.id}, {"$set": team2.dict()}, upsert=True)
+    
+    # Create Matches (Past, Live, Upcoming)
+    matches = [
+        {
+            "id": "demo-match-past",
+            "title": "Friday Night Derby",
+            "team_id": team1.id,
+            "captain_id": captain.id,
+            "opponent_team_name": "Abu Dhabi Champions",
+            "date": (datetime.utcnow() - timedelta(days=7)).isoformat(),
+            "format": MatchFormat.T20,
+            "status": MatchStatus.COMPLETED,
+            "location": "Al Wasl Cricket Ground",
+            "total_cost": 880.0,
+            "per_player_cost": 80.0,
+            "confirmed_player_ids": [captain.id, "demo-player-1", "demo-player-2", "demo-player-3"],
+            "result": "won",
+            "cost_breakdown": {"ground_fee": 500.0, "umpire_fee": 200.0, "balls_equipment": 150.0, "miscellaneous": 30.0}
+        },
+        {
+            "id": "demo-match-live",
+            "title": "Weekend Warriors Match",
+            "team_id": team1.id,
+            "captain_id": captain.id,
+            "opponent_team_name": "Ajman Eagles",
+            "date": datetime.utcnow().isoformat(),
+            "format": MatchFormat.T20,
+            "status": MatchStatus.PAYMENTS_PENDING,
+            "location": "ICC Academy",
+            "total_cost": 750.0,
+            "per_player_cost": 75.0,
+            "confirmed_player_ids": [captain.id, "demo-player-1", "demo-player-2", "demo-player-4", "demo-player-5"],
+            "player_payments": [
+                {"user_id": captain.id, "user_name": "Ahmed Al Maktoum", "amount_due": 75.0, "amount_paid": 75.0, "status": PaymentStatus.PAID},
+                {"user_id": "demo-player-1", "user_name": "Rashid Khan", "amount_due": 75.0, "amount_paid": 75.0, "status": PaymentStatus.PAID},
+                {"user_id": "demo-player-2", "user_name": "Virat Sharma", "amount_due": 75.0, "amount_paid": 40.0, "status": PaymentStatus.PARTIAL},
+                {"user_id": "demo-player-4", "user_name": "Jasprit Singh", "amount_due": 75.0, "amount_paid": 0.0, "status": PaymentStatus.PENDING},
+            ],
+            "cost_breakdown": {"ground_fee": 450.0, "umpire_fee": 150.0, "balls_equipment": 120.0, "miscellaneous": 30.0}
+        },
+        {
+            "id": "demo-match-upcoming",
+            "title": "Friday Night Clash",
+            "team_id": team1.id,
+            "captain_id": captain.id,
+            "opponent_team_name": "Ras Al Khaimah Royals",
+            "date": (datetime.utcnow() + timedelta(days=5)).isoformat(),
+            "format": MatchFormat.T20,
+            "status": MatchStatus.CONFIRMED,
+            "location": "Dubai Sports City",
+            "total_cost": 920.0,
+            "per_player_cost": 92.0,
+            "confirmed_player_ids": [captain.id, "demo-player-3", "demo-player-5", "demo-player-6"],
+            "cost_breakdown": {"ground_fee": 550.0, "umpire_fee": 200.0, "balls_equipment": 140.0, "miscellaneous": 30.0}
+        },
+    ]
+    
+    for match in matches:
+        await db.matches.update_one({"id": match["id"]}, {"$set": match}, upsert=True)
+    
+    # Create realistic wallet transactions
+    transactions = [
+        WalletTransaction(
+            user_id=captain.id,
+            type=TransactionType.TOPUP,
+            amount=1000.0,
+            balance_after=5000.0,
+            description="e& money top-up via savings account",
+            fee_breakdown=FeeBreakdown(gateway_fee=15.0, total_fees=15.0, net_amount=1000.0)
+        ),
+        WalletTransaction(
+            user_id=captain.id,
+            type=TransactionType.MATCH_PAYMENT,
+            amount=-81.0,
+            balance_after=4919.0,
+            description="Payment for match: Friday Night Derby (incl. fees)",
+            fee_breakdown=FeeBreakdown(platform_fee=1.0, gateway_fee=5.0, total_fees=6.0, net_amount=75.0)
+        ),
+        WalletTransaction(
+            user_id="demo-player-1",
+            type=TransactionType.TOPUP,
+            amount=500.0,
+            balance_after=2500.0,
+            description="e& money top-up",
+            fee_breakdown=FeeBreakdown(gateway_fee=7.5, total_fees=7.5, net_amount=500.0)
+        ),
+        WalletTransaction(
+            user_id="demo-player-1",
+            type=TransactionType.MATCH_PAYMENT,
+            amount=-81.0,
+            balance_after=2419.0,
+            description="Payment for match: Weekend Warriors Match",
+            fee_breakdown=FeeBreakdown(platform_fee=1.0, gateway_fee=5.0, total_fees=6.0, net_amount=75.0)
+        ),
+    ]
+    
+    for txn in transactions:
+        await db.wallet_transactions.update_one(
+            {"id": txn.id"},
+            {"$set": txn.dict()},
+            upsert=True
+        )
+    
+    return {
+        "message": "Demo data seeded successfully",
+        "users": len(demo_users),
+        "teams": 2,
+        "matches": 3,
+        "transactions": len(transactions),
+        "captain": {"phone": captain.phone, "password_otp": "123456"},
+        "demo_mode": True
+    }
+
+# Include router
+app.include_router(api_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
