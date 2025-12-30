@@ -647,4 +647,34 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 2,
   },
+
+  // New Features Section
+  newFeaturesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  newFeatureCard: {
+    width: (width - SPACING.lg * 2 - SPACING.md) / 2,
+    aspectRatio: 1,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  newFeatureGradient: {
+    flex: 1,
+    padding: SPACING.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  newFeatureTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: 'bold',
+    color: '#000',
+    marginTop: SPACING.sm,
+  },
+  newFeatureSubtitle: {
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(0,0,0,0.7)',
+    marginTop: 4,
+  },
 });
