@@ -8,7 +8,7 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
-const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://cricket-payments-1.preview.emergentagent.com';
 
 export default function LoginScreen() {
   const [phone, setPhone] = useState('');
