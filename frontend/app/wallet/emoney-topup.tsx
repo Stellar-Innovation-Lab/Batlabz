@@ -122,9 +122,8 @@ export default function EMoneyTopupScreen() {
 
       {/* Fee Info */}
       {amount && parseFloat(amount) > 0 && (
-        <MotiView
-          from={{ opacity: 0, translateY: 10 }}
-          animate={{ opacity: 1, translateY: 0 }}
+        <Animated.View
+          entering={FadeInDown.duration(300)}
           style={styles.feeInfoCard}
         >
           <View style={styles.feeRow}>
