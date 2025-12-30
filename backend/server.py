@@ -529,6 +529,117 @@ async def search_users(query: str, current_user: User = Depends(get_current_user
     }).to_list(20)
     return [User(**u) for u in users]
 
+# ==================== PLAYER MANAGEMENT ROUTES ====================
+
+@api_router.get("/players")
+async def get_players(
+    search: Optional[str] = None,
+    role: Optional[PlayingRole] = None,
+    user_role: Optional[UserRole] = None,
+    status: Optional[str] = None,  # active, inactive
+    team_id: Optional[str] = None,
+    sort_by: str = "name",  # name, wallet_balance, total_spent, created_at
+    sort_order: str = "asc",  # asc, desc
+    page: int = 1,
+    limit: int = 20,
+    current_user: User = Depends(get_current_user)
+):
+    """Get paginated list of players with search and filters"""
+    query = {}
+    
+    # Search filter
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}},
+            {"email": {"$regex": search, "$options": "i"}}
+        ]
+    
+    # Role filters
+    if role:
+        query["playing_role"] = role
+    if user_role:
+        query["role"] = user_role
+    if status:
+        query["is_active"] = status == "active"
+    if team_id:
+        query["team_ids"] = team_id
+    
+    # Count total
+    total = await db.users.count_documents(query)
+    
+    # Sort
+    sort_direction = 1 if sort_order == "asc" else -1
+    skip = (page - 1) * limit
+    
+    users = await db.users.find(query).sort(sort_by, sort_direction).skip(skip).limit(limit).to_list(limit)
+    
+    return {
+        "players": [User(**u) for u in users],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit
+    }
+
+@api_router.get("/players/{player_id}")
+async def get_player_detail(player_id: str, current_user: User = Depends(get_current_user)):
+    """Get detailed player profile with stats and history"""
+    player_data = await db.users.find_one({"id": player_id})
+    if not player_data:
+        raise HTTPException(status_code=404, detail="Player not found")
+    
+    player = User(**player_data)
+    
+    # Get match history
+    matches = await db.matches.find({
+        "$or": [
+            {"confirmed_player_ids": player_id},
+            {"player_payments.user_id": player_id}
+        ]
+    }).sort("created_at", -1).limit(10).to_list(10)
+    
+    # Get payment history
+    transactions = await db.wallet_transactions.find({"user_id": player_id}).sort("created_at", -1).limit(20).to_list(20)
+    
+    # Get teams
+    teams = await db.teams.find({"player_ids": player_id}).to_list(10)
+    
+    # Get player stats
+    stats = await db.player_stats.find_one({"user_id": player_id})
+    
+    return {
+        "player": player,
+        "matches": [Match(**m) for m in matches],
+        "transactions": [WalletTransaction(**t) for t in transactions],
+        "teams": [Team(**t) for t in teams],
+        "stats": stats if stats else {
+            "user_id": player_id,
+            "matches_played": 0,
+            "win_rate": 0.0,
+            "impact_score": 0.0,
+            "reliability_score": 100.0
+        }
+    }
+
+@api_router.post("/players/{player_id}/activate")
+async def activate_player(player_id: str, current_user: User = Depends(get_current_user)):
+    """Activate a player account"""
+    if current_user.role != UserRole.ADMIN and current_user.role != UserRole.CAPTAIN:
+        raise HTTPException(status_code=403, detail="Only admins and captains can activate players")
+    
+    await db.users.update_one({"id": player_id}, {"$set": {"is_active": True, "updated_at": datetime.utcnow()}})
+    return {"message": "Player activated successfully"}
+
+@api_router.post("/players/{player_id}/deactivate")
+async def deactivate_player(player_id: str, current_user: User = Depends(get_current_user)):
+    """Deactivate a player account"""
+    if current_user.role != UserRole.ADMIN and current_user.role != UserRole.CAPTAIN:
+        raise HTTPException(status_code=403, detail="Only admins and captains can deactivate players")
+    
+    await db.users.update_one({"id": player_id}, {"$set": {"is_active": False, "updated_at": datetime.utcnow()}})
+    return {"message": "Player deactivated successfully"}
+
 @api_router.get("/users/me/match-history")
 async def get_match_history(current_user: User = Depends(get_current_user)):
     matches = await db.matches.find({
