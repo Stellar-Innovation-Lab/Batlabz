@@ -1532,6 +1532,19 @@ async def book_slot(request: BookSlotRequest, current_user: User = Depends(get_c
     if not slot["is_available"]:
         raise HTTPException(status_code=400, detail="Slot not available")
     
+    # DOUBLE BOOKING PREVENTION: Check if slot already has an active booking
+    existing_booking = await db.ground_bookings.find_one({
+        "ground_id": request.ground_id,
+        "slot_id": request.slot_id,
+        "status": {"$ne": "cancelled"}
+    })
+    
+    if existing_booking:
+        raise HTTPException(
+            status_code=400,
+            detail=f"This slot is already booked (Booking #{existing_booking['id'][:8]}). Please refresh and choose another slot."
+        )
+    
     if current_user.wallet_balance < slot["price"]:
         raise HTTPException(status_code=400, detail="Insufficient wallet balance")
     
