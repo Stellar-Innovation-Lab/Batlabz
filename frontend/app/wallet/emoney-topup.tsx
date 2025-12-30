@@ -230,7 +230,7 @@ export default function EMoneyTopupScreen() {
         style={styles.successIcon}
       >
         <Ionicons name="checkmark-circle" size={80} color="#4ade80" />
-      </MotiView>
+      </Animated.View>
       <Text style={styles.successTitle}>Top-up Successful!</Text>
       <Text style={styles.successSubtitle}>Your wallet has been credited</Text>
 
