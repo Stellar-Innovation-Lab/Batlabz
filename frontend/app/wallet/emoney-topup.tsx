@@ -142,7 +142,7 @@ export default function EMoneyTopupScreen() {
               AED {(parseFloat(amount) + Math.max(5, parseFloat(amount) * 0.015)).toFixed(2)}
             </Text>
           </View>
-        </MotiView>
+        </Animated.View>
       )}
 
       {/* Continue Button */}
