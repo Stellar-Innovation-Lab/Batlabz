@@ -3231,7 +3231,7 @@ async def seed_demo_data(current_user: User = Depends(get_current_user)):
     # Insert users
     for user in demo_users:
         await db.users.update_one(
-            {"id": user.id"},
+            {"id": user.id},
             {"$set": user.dict()},
             upsert=True
         )
