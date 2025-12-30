@@ -1,158 +1,233 @@
+diff --git a/frontend/app/wallet/emoney-topup.tsx b/frontend/app/wallet/emoney-topup.tsx
+index 11be0c0..9104030 100644
+--- a/frontend/app/wallet/emoney-topup.tsx
++++ b/frontend/app/wallet/emoney-topup.tsx
+@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
+ import axios from 'axios';
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+ import Constants from 'expo-constants';
+-import { MotiView } from 'moti';
++import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+ 
+ const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+ 
+@@ -122,9 +122,8 @@ export default function EMoneyTopupScreen() {
+ 
+       {/* Fee Info */}
+       {amount && parseFloat(amount) > 0 && (
+-        <MotiView
+-          from={{ opacity: 0, translateY: 10 }}
+-          animate={{ opacity: 1, translateY: 0 }}
++        <Animated.View
++          entering={FadeInDown.duration(300)}
+           style={styles.feeInfoCard}
+         >
+           <View style={styles.feeRow}>
+@@ -143,7 +142,7 @@ export default function EMoneyTopupScreen() {
+               AED {(parseFloat(amount) + Math.max(5, parseFloat(amount) * 0.015)).toFixed(2)}
+             </Text>
+           </View>
+-        </MotiView>
++        </Animated.View>
+       )}
+ 
+       {/* Continue Button */}
+@@ -213,29 +212,25 @@ export default function EMoneyTopupScreen() {
+ 
+   const renderProcessingStep = () => (
+     <View style={styles.stepContainer}>
+-      <MotiView
+-        from={{ scale: 0 }}
+-        animate={{ scale: 1 }}
+-        transition={{ type: 'timing', duration: 500 }}
++      <Animated.View
++        entering={FadeIn.duration(500)}
+         style={styles.processingContainer}
+       >
+         <ActivityIndicator size="large" color="#4ade80" />
+         <Text style={styles.processingText}>Processing...</Text>
+         <Text style={styles.processingSubtext}>Please wait while we process your top-up</Text>
+-      </MotiView>
++      </Animated.View>
+     </View>
+   );
+ 
+   const renderSuccessStep = () => (
+     <View style={styles.stepContainer}>
+-      <MotiView
+-        from={{ scale: 0, rotate: '-180deg' }}
+-        animate={{ scale: 1, rotate: '0deg' }}
+-        transition={{ type: 'timing', duration: 500 }}
++      <Animated.View
++        entering={FadeIn.duration(500)}
+         style={styles.successIcon}
+       >
+         <Ionicons name="checkmark-circle" size={80} color="#4ade80" />
+-      </MotiView>
++      </Animated.View>
+       <Text style={styles.successTitle}>Top-up Successful!</Text>
+       <Text style={styles.successSubtitle}>Your wallet has been credited</Text>
+ 
 diff --git a/model.patch b/model.patch
-index f1219b7..e69de29 100644
+index 712f3e2..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,153 +0,0 @@
--diff --git a/backend/server.py b/backend/server.py
--index 0a97130..d58fff4 100644
----- a/backend/server.py
--+++ b/backend/server.py
--@@ -529,6 +529,117 @@ async def search_users(query: str, current_user: User = Depends(get_current_user
--     }).to_list(20)
--     return [User(**u) for u in users]
-- 
--+# ==================== PLAYER MANAGEMENT ROUTES ====================
--+
--+@api_router.get("/players")
--+async def get_players(
--+    search: Optional[str] = None,
--+    role: Optional[PlayingRole] = None,
--+    user_role: Optional[UserRole] = None,
--+    status: Optional[str] = None,  # active, inactive
--+    team_id: Optional[str] = None,
--+    sort_by: str = "name",  # name, wallet_balance, total_spent, created_at
--+    sort_order: str = "asc",  # asc, desc
--+    page: int = 1,
--+    limit: int = 20,
--+    current_user: User = Depends(get_current_user)
--+):
--+    """Get paginated list of players with search and filters"""
--+    query = {}
--+    
--+    # Search filter
--+    if search:
--+        query["$or"] = [
--+            {"name": {"$regex": search, "$options": "i"}},
--+            {"phone": {"$regex": search, "$options": "i"}},
--+            {"email": {"$regex": search, "$options": "i"}}
--+        ]
--+    
--+    # Role filters
--+    if role:
--+        query["playing_role"] = role
--+    if user_role:
--+        query["role"] = user_role
--+    if status:
--+        query["is_active"] = status == "active"
--+    if team_id:
--+        query["team_ids"] = team_id
--+    
--+    # Count total
--+    total = await db.users.count_documents(query)
--+    
--+    # Sort
--+    sort_direction = 1 if sort_order == "asc" else -1
--+    skip = (page - 1) * limit
--+    
--+    users = await db.users.find(query).sort(sort_by, sort_direction).skip(skip).limit(limit).to_list(limit)
--+    
--+    return {
--+        "players": [User(**u) for u in users],
--+        "total": total,
--+        "page": page,
--+        "limit": limit,
--+        "pages": (total + limit - 1) // limit
--+    }
--+
--+@api_router.get("/players/{player_id}")
--+async def get_player_detail(player_id: str, current_user: User = Depends(get_current_user)):
--+    """Get detailed player profile with stats and history"""
--+    player_data = await db.users.find_one({"id": player_id})
--+    if not player_data:
--+        raise HTTPException(status_code=404, detail="Player not found")
--+    
--+    player = User(**player_data)
--+    
--+    # Get match history
--+    matches = await db.matches.find({
--+        "$or": [
--+            {"confirmed_player_ids": player_id},
--+            {"player_payments.user_id": player_id}
--+        ]
--+    }).sort("created_at", -1).limit(10).to_list(10)
--+    
--+    # Get payment history
--+    transactions = await db.wallet_transactions.find({"user_id": player_id}).sort("created_at", -1).limit(20).to_list(20)
--+    
--+    # Get teams
--+    teams = await db.teams.find({"player_ids": player_id}).to_list(10)
--+    
--+    # Get player stats
--+    stats = await db.player_stats.find_one({"user_id": player_id})
--+    
--+    return {
--+        "player": player,
--+        "matches": [Match(**m) for m in matches],
--+        "transactions": [WalletTransaction(**t) for t in transactions],
--+        "teams": [Team(**t) for t in teams],
--+        "stats": stats if stats else {
--+            "user_id": player_id,
--+            "matches_played": 0,
--+            "win_rate": 0.0,
--+            "impact_score": 0.0,
--+            "reliability_score": 100.0
--+        }
--+    }
--+
--+@api_router.post("/players/{player_id}/activate")
--+async def activate_player(player_id: str, current_user: User = Depends(get_current_user)):
--+    """Activate a player account"""
--+    if current_user.role != UserRole.ADMIN and current_user.role != UserRole.CAPTAIN:
--+        raise HTTPException(status_code=403, detail="Only admins and captains can activate players")
--+    
--+    await db.users.update_one({"id": player_id}, {"$set": {"is_active": True, "updated_at": datetime.utcnow()}})
--+    return {"message": "Player activated successfully"}
--+
--+@api_router.post("/players/{player_id}/deactivate")
--+async def deactivate_player(player_id: str, current_user: User = Depends(get_current_user)):
--+    """Deactivate a player account"""
--+    if current_user.role != UserRole.ADMIN and current_user.role != UserRole.CAPTAIN:
--+        raise HTTPException(status_code=403, detail="Only admins and captains can deactivate players")
--+    
--+    await db.users.update_one({"id": player_id}, {"$set": {"is_active": False, "updated_at": datetime.utcnow()}})
--+    return {"message": "Player deactivated successfully"}
--+
-- @api_router.get("/users/me/match-history")
-- async def get_match_history(current_user: User = Depends(get_current_user)):
--     matches = await db.matches.find({
+@@ -1,158 +0,0 @@
 -diff --git a/model.patch b/model.patch
--index c385320..a4ca015 100644
+-index f1219b7..e69de29 100644
 ---- a/model.patch
 -+++ b/model.patch
--@@ -1,26 +0,0 @@
+-@@ -1,153 +0,0 @@
 --diff --git a/backend/server.py b/backend/server.py
---index 6f101f6..74d6724 100644
+--index 0a97130..d58fff4 100644
 ----- a/backend/server.py
 --+++ b/backend/server.py
---@@ -284,6 +284,13 @@ class AddExpenseRequest(BaseModel):
---     amount: float
+--@@ -529,6 +529,117 @@ async def search_users(query: str, current_user: User = Depends(get_current_user
+--     }).to_list(20)
+--     return [User(**u) for u in users]
 -- 
--- # Wallet Models
---+class FeeBreakdown(BaseModel):
---+    platform_fee: float = 0.0
---+    payout_fee: float = 0.0
---+    gateway_fee: float = 0.0
---+    total_fees: float = 0.0
---+    net_amount: float = 0.0
+--+# ==================== PLAYER MANAGEMENT ROUTES ====================
 --+
--- class WalletTransaction(BaseModel):
---     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
---     user_id: str
---@@ -292,6 +299,7 @@ class WalletTransaction(BaseModel):
---     balance_after: float
---     description: str
---     reference_id: Optional[str] = None
---+    fee_breakdown: Optional[FeeBreakdown] = None
---     created_at: datetime = Field(default_factory=datetime.utcnow)
--- 
--- class TopupRequest(BaseModel):
+--+@api_router.get("/players")
+--+async def get_players(
+--+    search: Optional[str] = None,
+--+    role: Optional[PlayingRole] = None,
+--+    user_role: Optional[UserRole] = None,
+--+    status: Optional[str] = None,  # active, inactive
+--+    team_id: Optional[str] = None,
+--+    sort_by: str = "name",  # name, wallet_balance, total_spent, created_at
+--+    sort_order: str = "asc",  # asc, desc
+--+    page: int = 1,
+--+    limit: int = 20,
+--+    current_user: User = Depends(get_current_user)
+--+):
+--+    """Get paginated list of players with search and filters"""
+--+    query = {}
+--+    
+--+    # Search filter
+--+    if search:
+--+        query["$or"] = [
+--+            {"name": {"$regex": search, "$options": "i"}},
+--+            {"phone": {"$regex": search, "$options": "i"}},
+--+            {"email": {"$regex": search, "$options": "i"}}
+--+        ]
+--+    
+--+    # Role filters
+--+    if role:
+--+        query["playing_role"] = role
+--+    if user_role:
+--+        query["role"] = user_role
+--+    if status:
+--+        query["is_active"] = status == "active"
+--+    if team_id:
+--+        query["team_ids"] = team_id
+--+    
+--+    # Count total
+--+    total = await db.users.count_documents(query)
+--+    
+--+    # Sort
+--+    sort_direction = 1 if sort_order == "asc" else -1
+--+    skip = (page - 1) * limit
+--+    
+--+    users = await db.users.find(query).sort(sort_by, sort_direction).skip(skip).limit(limit).to_list(limit)
+--+    
+--+    return {
+--+        "players": [User(**u) for u in users],
+--+        "total": total,
+--+        "page": page,
+--+        "limit": limit,
+--+        "pages": (total + limit - 1) // limit
+--+    }
+--+
+--+@api_router.get("/players/{player_id}")
+--+async def get_player_detail(player_id: str, current_user: User = Depends(get_current_user)):
+--+    """Get detailed player profile with stats and history"""
+--+    player_data = await db.users.find_one({"id": player_id})
+--+    if not player_data:
+--+        raise HTTPException(status_code=404, detail="Player not found")
+--+    
+--+    player = User(**player_data)
+--+    
+--+    # Get match history
+--+    matches = await db.matches.find({
+--+        "$or": [
+--+            {"confirmed_player_ids": player_id},
+--+            {"player_payments.user_id": player_id}
+--+        ]
+--+    }).sort("created_at", -1).limit(10).to_list(10)
+--+    
+--+    # Get payment history
+--+    transactions = await db.wallet_transactions.find({"user_id": player_id}).sort("created_at", -1).limit(20).to_list(20)
+--+    
+--+    # Get teams
+--+    teams = await db.teams.find({"player_ids": player_id}).to_list(10)
+--+    
+--+    # Get player stats
+--+    stats = await db.player_stats.find_one({"user_id": player_id})
+--+    
+--+    return {
+--+        "player": player,
+--+        "matches": [Match(**m) for m in matches],
+--+        "transactions": [WalletTransaction(**t) for t in transactions],
+--+        "teams": [Team(**t) for t in teams],
+--+        "stats": stats if stats else {
+--+            "user_id": player_id,
+--+            "matches_played": 0,
+--+            "win_rate": 0.0,
+--+            "impact_score": 0.0,
+--+            "reliability_score": 100.0
+--+        }
+--+    }
+--+
+--+@api_router.post("/players/{player_id}/activate")
+--+async def activate_player(player_id: str, current_user: User = Depends(get_current_user)):
+--+    """Activate a player account"""
+--+    if current_user.role != UserRole.ADMIN and current_user.role != UserRole.CAPTAIN:
+--+        raise HTTPException(status_code=403, detail="Only admins and captains can activate players")
+--+    
+--+    await db.users.update_one({"id": player_id}, {"$set": {"is_active": True, "updated_at": datetime.utcnow()}})
+--+    return {"message": "Player activated successfully"}
+--+
+--+@api_router.post("/players/{player_id}/deactivate")
+--+async def deactivate_player(player_id: str, current_user: User = Depends(get_current_user)):
+--+    """Deactivate a player account"""
+--+    if current_user.role != UserRole.ADMIN and current_user.role != UserRole.CAPTAIN:
+--+        raise HTTPException(status_code=403, detail="Only admins and captains can deactivate players")
+--+    
+--+    await db.users.update_one({"id": player_id}, {"$set": {"is_active": False, "updated_at": datetime.utcnow()}})
+--+    return {"message": "Player deactivated successfully"}
+--+
+-- @api_router.get("/users/me/match-history")
+-- async def get_match_history(current_user: User = Depends(get_current_user)):
+--     matches = await db.matches.find({
+--diff --git a/model.patch b/model.patch
+--index c385320..a4ca015 100644
+----- a/model.patch
+--+++ b/model.patch
+--@@ -1,26 +0,0 @@
+---diff --git a/backend/server.py b/backend/server.py
+---index 6f101f6..74d6724 100644
+------ a/backend/server.py
+---+++ b/backend/server.py
+---@@ -284,6 +284,13 @@ class AddExpenseRequest(BaseModel):
+---     amount: float
+--- 
+--- # Wallet Models
+---+class FeeBreakdown(BaseModel):
+---+    platform_fee: float = 0.0
+---+    payout_fee: float = 0.0
+---+    gateway_fee: float = 0.0
+---+    total_fees: float = 0.0
+---+    net_amount: float = 0.0
+---+
+--- class WalletTransaction(BaseModel):
+---     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+---     user_id: str
+---@@ -292,6 +299,7 @@ class WalletTransaction(BaseModel):
+---     balance_after: float
+---     description: str
+---     reference_id: Optional[str] = None
+---+    fee_breakdown: Optional[FeeBreakdown] = None
+---     created_at: datetime = Field(default_factory=datetime.utcnow)
+--- 
+--- class TopupRequest(BaseModel):
