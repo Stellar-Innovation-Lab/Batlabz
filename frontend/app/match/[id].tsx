@@ -372,9 +372,9 @@ export default function MatchDetailScreen() {
               style={styles.actionButton}
               onPress={() => router.push(`/match/participants?id=${match.id}`)}
             >
-              <Ionicons name=\"people\" size={20} color={COLORS.primary} />
+              <Ionicons name="people" size={20} color={COLORS.primary} />
               <Text style={styles.actionButtonText}>View All Participants & Payments</Text>
-              <Ionicons name=\"chevron-forward\" size={20} color={COLORS.textMuted} />
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
 
             {/* Book Ground */}
@@ -383,9 +383,9 @@ export default function MatchDetailScreen() {
                 style={styles.actionButton}
                 onPress={() => router.push(`/ground/book-for-match?matchId=${match.id}&date=${match.date}`)}
               >
-                <Ionicons name=\"location\" size={20} color={COLORS.gold} />
+                <Ionicons name="location" size={20} color={COLORS.gold} />
                 <Text style={styles.actionButtonText}>Book Ground for This Match</Text>
-                <Ionicons name=\"chevron-forward\" size={20} color={COLORS.textMuted} />
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </TouchableOpacity>
             )}
 
@@ -395,9 +395,9 @@ export default function MatchDetailScreen() {
                 style={[styles.actionButton, styles.actionButtonSuccess]}
                 onPress={() => router.push(`/ground/${match.ground_id}`)}
               >
-                <Ionicons name=\"checkmark-circle\" size={20} color={COLORS.success} />
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
                 <Text style={[styles.actionButtonText, { color: COLORS.success }]}>Ground Booked</Text>
-                <Ionicons name=\"eye\" size={20} color={COLORS.success} />
+                <Ionicons name="eye" size={20} color={COLORS.success} />
               </TouchableOpacity>
             )}
           </Card>
