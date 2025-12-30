@@ -1080,6 +1080,96 @@ async def get_match_summary(match_id: str, current_user: User = Depends(get_curr
         "waiting_count": len(match_data.get("waiting_list_ids", []))
     }
 
+@api_router.get("/matches/{match_id}/participants")
+async def get_match_participants(match_id: str, current_user: User = Depends(get_current_user)):
+    """Get detailed participant list with payment status"""
+    match_data = await db.matches.find_one({"id": match_id})
+    if not match_data:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    participants = []
+    for payment in match_data.get("player_payments", []):
+        user_data = await db.users.find_one({"id": payment["user_id"]})
+        if user_data:
+            participants.append({
+                "user_id": payment["user_id"],
+                "name": payment["user_name"],
+                "phone": user_data.get("phone", ""),
+                "playing_role": user_data.get("playing_role", ""),
+                "amount_due": payment["amount_due"],
+                "amount_paid": payment.get("amount_paid", 0),
+                "status": payment["status"],
+                "paid_at": payment.get("paid_at"),
+                "is_guest": payment.get("is_guest", False)
+            })
+    
+    # Separate by status
+    paid = [p for p in participants if p["status"] == PaymentStatus.PAID]
+    partial = [p for p in participants if p["status"] == PaymentStatus.PARTIAL]
+    pending = [p for p in participants if p["status"] == PaymentStatus.PENDING]
+    
+    return {
+        "match_id": match_id,
+        "match_title": match_data.get("title", ""),
+        "total_participants": len(participants),
+        "paid": paid,
+        "partial": partial,
+        "pending": pending,
+        "summary": {
+            "paid_count": len(paid),
+            "partial_count": len(partial),
+            "pending_count": len(pending),
+            "total_collected": sum(p["amount_paid"] for p in participants),
+            "total_due": sum(p["amount_due"] for p in participants)
+        }
+    }
+
+@api_router.post("/matches/{match_id}/assign-players")
+async def assign_players_to_match(match_id: str, player_ids: List[str], current_user: User = Depends(get_current_user)):
+    """Assign multiple players to a match"""
+    match_data = await db.matches.find_one({"id": match_id})
+    if not match_data:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    if match_data.get("captain_id") != current_user.id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only captain or admin can assign players")
+    
+    # Get match fee per player
+    per_player = match_data.get("per_player_cost", 0)
+    if per_player == 0:
+        raise HTTPException(status_code=400, detail="Match fees not calculated yet")
+    
+    # Add player payments
+    existing_player_ids = [p["user_id"] for p in match_data.get("player_payments", [])]
+    new_payments = []
+    
+    for player_id in player_ids:
+        if player_id in existing_player_ids:
+            continue  # Skip if already added
+        
+        user_data = await db.users.find_one({"id": player_id})
+        if not user_data:
+            continue
+        
+        payment = PlayerPayment(
+            user_id=player_id,
+            user_name=user_data.get("name", "Player"),
+            amount_due=per_player,
+            status=PaymentStatus.PENDING
+        )
+        new_payments.append(payment.dict())
+    
+    if new_payments:
+        await db.matches.update_one(
+            {"id": match_id},
+            {"$push": {"player_payments": {"$each": new_payments}}}
+        )
+    
+    return {
+        "message": f"Successfully assigned {len(new_payments)} players",
+        "assigned_count": len(new_payments)
+    }
+
 # ==================== WALLET ROUTES ====================
 
 @api_router.get("/wallet/balance")
