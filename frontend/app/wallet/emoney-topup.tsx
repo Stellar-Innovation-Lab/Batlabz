@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import { MotiView } from 'moti';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 
 const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
