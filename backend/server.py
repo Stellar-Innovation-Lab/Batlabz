@@ -3359,7 +3359,7 @@ async def seed_demo_data(current_user: User = Depends(get_current_user)):
     
     for txn in transactions:
         await db.wallet_transactions.update_one(
-            {"id": txn.id"},
+            {"id": txn.id},
             {"$set": txn.dict()},
             upsert=True
         )
