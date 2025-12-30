@@ -1,290 +1,208 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  KeyboardAvoidingView, 
-  Platform, 
-  Dimensions,
-  Animated,
-  Easing,
-  StatusBar,
-  ScrollView
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Dimensions, StatusBar, ScrollView } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../src/components/theme';
-import { authAPI } from '../../src/services/api';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  withDelay,
+  Easing,
+  FadeInDown,
+  FadeIn,
+  SlideInRight,
+} from 'react-native-reanimated';
 
+const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 const { width, height } = Dimensions.get('window');
 
-// Cricket ball with rotation
-const CricketBall = ({ size = 90 }: { size?: number }) => {
-  const rotate = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      tension: 50,
-      friction: 7,
-      useNativeDriver: true,
-    }).start();
-
-    Animated.loop(
-      Animated.timing(rotate, {
-        toValue: 1,
-        duration: 20000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, []);
-
-  const spin = rotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const innerSize = size * 0.78;
-  const emojiSize = size * 0.44;
-
-  return (
-    <Animated.View style={[
-      styles.cricketBall, 
-      { 
-        width: size, 
-        height: size, 
-        borderRadius: size / 2,
-        transform: [{ rotate: spin }, { scale }] 
-      }
-    ]}>
-      <View style={[styles.ballInner, { width: innerSize, height: innerSize, borderRadius: innerSize / 2 }]}>
-        <Text style={{ fontSize: emojiSize }}>🏏</Text>
-      </View>
-    </Animated.View>
-  );
-};
-
 export default function LoginScreen() {
-  const router = useRouter();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [focused, setFocused] = useState(false);
-  const inputRef = useRef<TextInput>(null);
 
-  const formatPhone = (text: string) => {
-    const cleaned = text.replace(/\D/g, '');
-    if (cleaned.length <= 2) return cleaned;
-    if (cleaned.length <= 5) return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
-    return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 9)}`;
-  };
+  // Animation values
+  const ballScale = useSharedValue(0);
+  const ballY = useSharedValue(-50);
+  const formOpacity = useSharedValue(0);
 
-  const handlePhoneChange = (text: string) => {
-    setPhone(formatPhone(text));
-    setError('');
-  };
+  useEffect(() => {
+    // Ball drop animation
+    ballScale.value = withDelay(200, withSpring(1, { damping: 8 }));
+    ballY.value = withDelay(
+      200,
+      withSequence(
+        withSpring(0, { damping: 8 }),
+        withSpring(-20, { damping: 15 }),
+        withSpring(0, { damping: 15 })
+      )
+    );
 
-  const handleContinue = async () => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    
-    if (cleanPhone.length < 9) {
-      setError('Please enter a valid phone number');
+    // Form fade in
+    formOpacity.value = withDelay(800, withTiming(1, { duration: 600 }));
+  }, []);
+
+  const ballAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: ballScale.value },
+      { translateY: ballY.value },
+    ],
+  }));
+
+  const formAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: formOpacity.value,
+  }));
+
+  const handleSendOTP = async () => {
+    if (!phone || phone.length < 8) {
+      alert('Please enter a valid phone number');
       return;
     }
 
     setLoading(true);
-    setError('');
-
     try {
-      const fullPhone = cleanPhone.startsWith('971') ? `+${cleanPhone}` : `+971${cleanPhone}`;
-      await authAPI.requestOTP(fullPhone);
-      router.push({ pathname: '/auth/otp', params: { phone: fullPhone } });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to send OTP');
+      const fullPhone = phone.startsWith('+971') ? phone : `+971${phone}`;
+      await axios.post(`${BACKEND_URL}/api/auth/request-otp`, { phone: fullPhone });
+      router.push(`/auth/otp?phone=${encodeURIComponent(fullPhone)}`);
+    } catch (error) {
+      console.error('OTP request failed:', error);
+      alert('Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const isValid = phone.replace(/\D/g, '').length >= 9;
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
-      {/* Gradient Background */}
       <LinearGradient
         colors={['#0f172a', '#1e293b', '#0f172a']}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Gradient Orbs */}
-      <View style={[styles.orb, styles.orb1]} />
-      <View style={[styles.orb, styles.orb2]} />
-
-      <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView 
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
           <ScrollView
             contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            bounces={false}
+            showsVerticalScrollIndicator={false}
           >
-            {/* Header with Ball */}
+            {/* Animated Background Circles */}
+            <View style={styles.circlesContainer}>
+              <Animated.View style={[styles.circle, styles.circle1]} entering={FadeIn.delay(100).duration(1000)} />
+              <Animated.View style={[styles.circle, styles.circle2]} entering={FadeIn.delay(300).duration(1000)} />
+            </View>
+
+            {/* Header with animated cricket ball */}
             <View style={styles.header}>
-              <CricketBall size={80} />
-              
-              <View style={styles.titleContainer}>
-                <Text style={styles.appName}>BATLABZ</Text>
-                <LinearGradient
-                  colors={[COLORS.primary, COLORS.gold]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.taglineGradient}
-                >
-                  <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
-                </LinearGradient>
-              </View>
-            </View>
-
-            {/* Welcome Section */}
-            <View style={styles.welcomeSection}>
-              <View style={styles.welcomeRow}>
-                <Text style={styles.waveEmoji}>👋</Text>
-                <Text style={styles.welcomeText}>Welcome!</Text>
-              </View>
-              <Text style={styles.subtitleText}>
-                Join UAE's premier cricket community
-              </Text>
-            </View>
-
-            {/* Phone Input Card */}
-            <View style={styles.inputCard}>
-              <Text style={styles.inputLabel}>MOBILE NUMBER</Text>
-              
-              <View 
-                style={[
-                  styles.inputWrapper,
-                  focused && styles.inputWrapperFocused,
-                  error && styles.inputWrapperError,
-                ]}
-              >
-                <View style={styles.countrySection}>
-                  <Text style={styles.flag}>🇦🇪</Text>
-                  <Text style={styles.countryCode}>+971</Text>
+              <Animated.View style={[styles.ballWrapper, ballAnimatedStyle]}>
+                <View style={styles.cricketBall}>
+                  <View style={styles.seam} />
+                  <View style={[styles.seam, styles.seam2]} />
                 </View>
-                
-                <View style={styles.divider} />
-                
-                <TextInput
-                  ref={inputRef}
-                  style={styles.phoneInput}
-                  value={phone}
-                  onChangeText={handlePhoneChange}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
-                  placeholder="50 123 4567"
-                  placeholderTextColor="rgba(255,255,255,0.25)"
-                  keyboardType="phone-pad"
-                  maxLength={11}
-                />
-                
-                {isValid && (
-                  <View style={styles.checkIcon}>
-                    <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
-                  </View>
-                )}
-              </View>
-
-              {error ? (
-                <View style={styles.errorRow}>
-                  <Ionicons name="alert-circle" size={14} color={COLORS.error} />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : (
-                <Text style={styles.hintText}>We'll send a verification code via SMS</Text>
-              )}
+              </Animated.View>
+              
+              <Animated.Text style={styles.title} entering={SlideInRight.delay(500).springify()}>BATLABZ</Animated.Text>
+              <Animated.View style={styles.taglineBox} entering={FadeInDown.delay(700)}>
+                <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
+              </Animated.View>
+              <Animated.Text style={styles.welcomeText} entering={FadeInDown.delay(900)}>🏏 Welcome!</Animated.Text>
+              <Animated.Text style={styles.subtitle} entering={FadeInDown.delay(1000)}>Join UAE's premier cricket community</Animated.Text>
             </View>
 
-            {/* Continue Button */}
-            <TouchableOpacity
-              onPress={handleContinue}
-              disabled={!isValid || loading}
-              activeOpacity={0.85}
-              style={styles.buttonContainer}
-            >
-              <LinearGradient
-                colors={isValid 
-                  ? [COLORS.primary, '#00e676']
-                  : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.continueButton}
-              >
-                {loading ? (
-                  <Text style={styles.buttonText}>Sending...</Text>
-                ) : (
-                  <>
-                    <Text style={[
-                      styles.buttonText,
-                      !isValid && styles.buttonTextDisabled
-                    ]}>
-                      Get Started
-                    </Text>
-                    <View style={[
-                      styles.buttonIcon,
-                      !isValid && styles.buttonIconDisabled
-                    ]}>
-                      <Ionicons 
-                        name="arrow-forward" 
-                        size={18} 
-                        color={isValid ? '#000' : 'rgba(255,255,255,0.3)'} 
-                      />
+            {/* Login Form */}
+            <Animated.View style={[styles.formContainer, formAnimatedStyle]}>
+              <View style={styles.card}>
+                <Animated.View entering={FadeInDown.delay(1100)}>
+                  <Text style={styles.label}>MOBILE NUMBER</Text>
+                  <View style={styles.phoneInputContainer}>
+                    <View style={styles.countryCode}>
+                      <Text style={styles.flag}>🇦🇪</Text>
+                      <Text style={styles.codeText}>+971</Text>
                     </View>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
+                    <TextInput
+                      style={styles.phoneInput}
+                      placeholder="50 123 4567"
+                      placeholderTextColor="#64748b"
+                      keyboardType="phone-pad"
+                      value={phone}
+                      onChangeText={setPhone}
+                      maxLength={11}
+                    />
+                  </View>
+                  <Text style={styles.helperText}>We'll send a verification code via SMS</Text>
+                </Animated.View>
 
-            {/* Terms */}
-            <Text style={styles.termsText}>
-              By continuing, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms</Text> &{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
-            </Text>
+                <Animated.View entering={FadeInDown.delay(1200)}>
+                  <TouchableOpacity
+                    style={[styles.button, loading && styles.buttonDisabled]}
+                    onPress={handleSendOTP}
+                    disabled={loading}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={['#4ade80', '#22c55e']}
+                      style={styles.buttonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      {loading ? (
+                        <Text style={styles.buttonText}>Sending...</Text>
+                      ) : (
+                        <>
+                          <Text style={styles.buttonText}>Get Started</Text>
+                          <Ionicons name="arrow-forward" size={20} color="#000" style={{ marginLeft: 8 }} />
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
 
-            {/* Bottom spacing */}
-            <View style={{ height: SPACING.xl }} />
-          </ScrollView>
-
-          {/* Bottom Features - Fixed at bottom */}
-          <View style={styles.featuresContainer}>
-            {[
-              { icon: 'calendar', label: 'Schedule', color: COLORS.primary },
-              { icon: 'wallet', label: 'Pay & Split', color: COLORS.gold },
-              { icon: 'location', label: 'Book', color: COLORS.secondary },
-              { icon: 'trophy', label: 'Compete', color: '#a855f7' },
-            ].map((item, index) => (
-              <View key={index} style={styles.featureItem}>
-                <View style={[styles.featureIconBg, { backgroundColor: item.color + '20' }]}>
-                  <Ionicons name={item.icon as any} size={18} color={item.color} />
-                </View>
-                <Text style={styles.featureLabel}>{item.label}</Text>
+                <Animated.Text style={styles.termsText} entering={FadeInDown.delay(1300)}>
+                  By continuing, you agree to our{' '}
+                  <Text style={styles.termsLink}>Terms & Privacy Policy</Text>
+                </Animated.Text>
               </View>
-            ))}
-          </View>
+            </Animated.View>
+
+            {/* Bottom Features */}
+            <Animated.View style={styles.featuresContainer} entering={FadeInDown.delay(1400)}>
+              <View style={styles.feature}>
+                <View style={styles.featureIcon}>
+                  <Ionicons name="calendar" size={20} color="#4ade80" />
+                </View>
+                <Text style={styles.featureText}>Schedule</Text>
+              </View>
+              <View style={styles.feature}>
+                <View style={styles.featureIcon}>
+                  <Ionicons name="card" size={20} color="#4ade80" />
+                </View>
+                <Text style={styles.featureText}>Pay & Split</Text>
+              </View>
+              <View style={styles.feature}>
+                <View style={styles.featureIcon}>
+                  <Ionicons name="location" size={20} color="#4ade80" />
+                </View>
+                <Text style={styles.featureText}>Book</Text>
+              </View>
+              <View style={styles.feature}>
+                <View style={styles.featureIcon}>
+                  <Ionicons name="trophy" size={20} color="#4ade80" />
+                </View>
+                <Text style={styles.featureText}>Compete</Text>
+              </View>
+            </Animated.View>
+          </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </LinearGradient>
     </View>
   );
 }
@@ -292,9 +210,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
-  safeArea: {
+  gradient: {
     flex: 1,
   },
   keyboardView: {
@@ -302,248 +219,207 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.md,
+    paddingBottom: 40,
   },
-
-  // Orbs
-  orb: {
+  circlesContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  circle: {
     position: 'absolute',
-    borderRadius: 999,
+    borderRadius: 1000,
+    backgroundColor: 'rgba(74, 222, 128, 0.05)',
   },
-  orb1: {
-    width: 350,
-    height: 350,
-    top: -120,
-    right: -120,
-    backgroundColor: COLORS.primary,
-    opacity: 0.08,
+  circle1: {
+    width: 300,
+    height: 300,
+    top: -100,
+    left: -100,
   },
-  orb2: {
+  circle2: {
     width: 250,
     height: 250,
-    bottom: 80,
-    left: -80,
-    backgroundColor: COLORS.gold,
-    opacity: 0.06,
+    bottom: 100,
+    right: -100,
   },
-
-  // Header
   header: {
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    paddingTop: 80,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
+  ballWrapper: {
+    marginBottom: 24,
   },
   cricketBall: {
-    backgroundColor: '#1e293b',
-    borderWidth: 3,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#ef4444',
     justifyContent: 'center',
-    marginBottom: SPACING.md,
-  },
-  ballInner: {
-    backgroundColor: '#0f172a',
     alignItems: 'center',
-    justifyContent: 'center',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  titleContainer: {
-    alignItems: 'center',
+  seam: {
+    position: 'absolute',
+    width: 50,
+    height: 2,
+    backgroundColor: '#fff',
+    borderRadius: 1,
+    transform: [{ rotate: '20deg' }],
   },
-  appName: {
-    fontSize: 32,
-    fontWeight: '900',
+  seam2: {
+    transform: [{ rotate: '-20deg' }],
+  },
+  title: {
+    fontSize: 42,
+    fontWeight: 'bold',
     color: '#fff',
-    letterSpacing: 5,
+    letterSpacing: 4,
+    marginBottom: 12,
+    textShadowColor: 'rgba(74, 222, 128, 0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
-  taglineGradient: {
-    marginTop: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.sm,
+  taglineBox: {
+    backgroundColor: '#4ade80',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 24,
   },
   tagline: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: 'bold',
     color: '#000',
     letterSpacing: 2,
   },
-
-  // Welcome
-  welcomeSection: {
-    marginBottom: SPACING.lg,
-  },
-  welcomeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  waveEmoji: {
-    fontSize: 24,
-    marginRight: SPACING.sm,
-  },
   welcomeText: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#fff',
+    marginBottom: 8,
   },
-  subtitleText: {
-    fontSize: FONT_SIZES.sm,
-    color: 'rgba(255,255,255,0.5)',
+  subtitle: {
+    fontSize: 15,
+    color: '#94a3b8',
     textAlign: 'center',
   },
-
-  // Input Card
-  inputCard: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
+  formContainer: {
+    paddingHorizontal: 20,
+  },
+  card: {
+    backgroundColor: '#1e293b',
+    borderRadius: 24,
+    padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: '#334155',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  inputLabel: {
-    fontSize: 10,
+  label: {
+    fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1.5,
-    marginBottom: SPACING.sm,
+    color: '#94a3b8',
+    marginBottom: 12,
+    letterSpacing: 1,
   },
-  inputWrapper: {
+  phoneInputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-  },
-  inputWrapperFocused: {
-    borderColor: COLORS.primary,
-    backgroundColor: 'rgba(0,200,83,0.05)',
-  },
-  inputWrapperError: {
-    borderColor: COLORS.error,
-  },
-  countrySection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.sm,
-  },
-  flag: {
-    fontSize: 18,
-    marginRight: 4,
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderWidth: 2,
+    borderColor: '#334155',
+    marginBottom: 12,
   },
   countryCode: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 12,
+    borderRightWidth: 1,
+    borderRightColor: '#334155',
   },
-  divider: {
-    width: 1,
-    height: 24,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  flag: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  codeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   phoneInput: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '500',
     color: '#fff',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.sm,
-    letterSpacing: 1,
+    paddingVertical: 16,
+    paddingLeft: 12,
+    fontWeight: '500',
   },
-  checkIcon: {
-    paddingRight: SPACING.sm,
+  helperText: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 24,
   },
-  hintText: {
-    fontSize: FONT_SIZES.xs,
-    color: 'rgba(255,255,255,0.35)',
-    marginTop: SPACING.sm,
-    textAlign: 'center',
-  },
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: SPACING.sm,
-    gap: 4,
-  },
-  errorText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.error,
-  },
-
-  // Button
-  buttonContainer: {
-    borderRadius: BORDER_RADIUS.xl,
+  button: {
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: SPACING.sm,
+    marginBottom: 16,
   },
-  continueButton: {
+  buttonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.md,
-    gap: SPACING.sm,
+    paddingVertical: 18,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: 'bold',
     color: '#000',
   },
-  buttonTextDisabled: {
-    color: 'rgba(255,255,255,0.35)',
-  },
-  buttonIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonIconDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-
-  // Terms
   termsText: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: '#64748b',
     textAlign: 'center',
     lineHeight: 16,
   },
   termsLink: {
-    color: COLORS.primary,
-    fontWeight: '500',
+    color: '#4ade80',
+    fontWeight: '600',
   },
-
-  // Features
   featuresContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+    paddingHorizontal: 20,
+    marginTop: 40,
   },
-  featureItem: {
+  feature: {
     alignItems: 'center',
   },
-  featureIconBg: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
+  featureIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(74, 222, 128, 0.1)',
     justifyContent: 'center',
-    marginBottom: 4,
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  featureLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.6)',
+  featureText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
 });
