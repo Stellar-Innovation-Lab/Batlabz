@@ -188,6 +188,76 @@ export default function HomeScreen() {
             </View>
           </View>
 
+          {/* New Features Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>⚡ New Features</Text>
+            <View style={styles.newFeaturesGrid}>
+              {/* Player Management */}
+              <TouchableOpacity 
+                style={styles.newFeatureCard}
+                onPress={() => router.push('/players')}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#4ade80', '#22c55e']}
+                  style={styles.newFeatureGradient}
+                >
+                  <Ionicons name="people" size={32} color="#000" />
+                  <Text style={styles.newFeatureTitle}>Players</Text>
+                  <Text style={styles.newFeatureSubtitle}>Manage & Search</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Enhanced Transactions */}
+              <TouchableOpacity 
+                style={styles.newFeatureCard}
+                onPress={() => router.push('/wallet/enhanced-transactions')}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#3b82f6', '#2563eb']}
+                  style={styles.newFeatureGradient}
+                >
+                  <Ionicons name="receipt" size={32} color="#fff" />
+                  <Text style={[styles.newFeatureTitle, { color: '#fff' }]}>Transactions</Text>
+                  <Text style={[styles.newFeatureSubtitle, { color: 'rgba(255,255,255,0.8)' }]}>With Fee Details</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* e& Money Top-up */}
+              <TouchableOpacity 
+                style={styles.newFeatureCard}
+                onPress={() => router.push('/wallet/emoney-topup')}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#f59e0b', '#d97706']}
+                  style={styles.newFeatureGradient}
+                >
+                  <Ionicons name="card" size={32} color="#000" />
+                  <Text style={styles.newFeatureTitle}>e& Money</Text>
+                  <Text style={styles.newFeatureSubtitle}>Quick Top-up</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* AI Features */}
+              <TouchableOpacity 
+                style={styles.newFeatureCard}
+                onPress={() => router.push('/ai')}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#8b5cf6', '#7c3aed']}
+                  style={styles.newFeatureGradient}
+                >
+                  <Ionicons name="sparkles" size={32} color="#fff" />
+                  <Text style={[styles.newFeatureTitle, { color: '#fff' }]}>AI Hub</Text>
+                  <Text style={[styles.newFeatureSubtitle, { color: 'rgba(255,255,255,0.8)' }]}>Smart Features</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* AI Features Banner */}
           <TouchableOpacity 
             activeOpacity={0.9} 
