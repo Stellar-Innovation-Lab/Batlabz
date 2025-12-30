@@ -1,62 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Dimensions, StatusBar, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withSequence,
-  withDelay,
-  Easing,
-  FadeInDown,
-  FadeIn,
-  SlideInRight,
-} from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 
 const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
-const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Animation values
-  const ballScale = useSharedValue(0);
-  const ballY = useSharedValue(-50);
-  const formOpacity = useSharedValue(0);
-
-  useEffect(() => {
-    // Ball drop animation
-    ballScale.value = withDelay(200, withSpring(1, { damping: 8 }));
-    ballY.value = withDelay(
-      200,
-      withSequence(
-        withSpring(0, { damping: 8 }),
-        withSpring(-20, { damping: 15 }),
-        withSpring(0, { damping: 15 })
-      )
-    );
-
-    // Form fade in
-    formOpacity.value = withDelay(800, withTiming(1, { duration: 600 }));
-  }, []);
-
-  const ballAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: ballScale.value },
-      { translateY: ballY.value },
-    ],
-  }));
-
-  const formAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: formOpacity.value,
-  }));
 
   const handleSendOTP = async () => {
     if (!phone || phone.length < 8) {
@@ -79,7 +35,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <LinearGradient
         colors={['#0f172a', '#1e293b', '#0f172a']}
         style={styles.gradient}
@@ -97,31 +53,32 @@ export default function LoginScreen() {
           >
             {/* Animated Background Circles */}
             <View style={styles.circlesContainer}>
-              <Animated.View style={[styles.circle, styles.circle1]} entering={FadeIn.delay(100).duration(1000)} />
-              <Animated.View style={[styles.circle, styles.circle2]} entering={FadeIn.delay(300).duration(1000)} />
+              <View style={[styles.circle, styles.circle1]} />
+              <View style={[styles.circle, styles.circle2]} />
             </View>
 
-            {/* Header with animated cricket ball */}
+            {/* Header */}
             <View style={styles.header}>
-              <Animated.View style={[styles.ballWrapper, ballAnimatedStyle]}>
+              {/* Cricket Ball */}
+              <View style={styles.ballWrapper}>
                 <View style={styles.cricketBall}>
                   <View style={styles.seam} />
                   <View style={[styles.seam, styles.seam2]} />
                 </View>
-              </Animated.View>
+              </View>
               
-              <Animated.Text style={styles.title} entering={SlideInRight.delay(500).springify()}>BATLABZ</Animated.Text>
-              <Animated.View style={styles.taglineBox} entering={FadeInDown.delay(700)}>
+              <Text style={styles.title}>BATLABZ</Text>
+              <View style={styles.taglineBox}>
                 <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
-              </Animated.View>
-              <Animated.Text style={styles.welcomeText} entering={FadeInDown.delay(900)}>🏏 Welcome!</Animated.Text>
-              <Animated.Text style={styles.subtitle} entering={FadeInDown.delay(1000)}>Join UAE's premier cricket community</Animated.Text>
+              </View>
+              <Text style={styles.welcomeText}>🏏 Welcome!</Text>
+              <Text style={styles.subtitle}>Join UAE's premier cricket community</Text>
             </View>
 
             {/* Login Form */}
-            <Animated.View style={[styles.formContainer, formAnimatedStyle]}>
+            <View style={styles.formContainer}>
               <View style={styles.card}>
-                <Animated.View entering={FadeInDown.delay(1100)}>
+                <View>
                   <Text style={styles.label}>MOBILE NUMBER</Text>
                   <View style={styles.phoneInputContainer}>
                     <View style={styles.countryCode}>
@@ -136,12 +93,13 @@ export default function LoginScreen() {
                       value={phone}
                       onChangeText={setPhone}
                       maxLength={11}
+                      editable={!loading}
                     />
                   </View>
                   <Text style={styles.helperText}>We'll send a verification code via SMS</Text>
-                </Animated.View>
+                </View>
 
-                <Animated.View entering={FadeInDown.delay(1200)}>
+                <View>
                   <TouchableOpacity
                     style={[styles.button, loading && styles.buttonDisabled]}
                     onPress={handleSendOTP}
@@ -155,26 +113,26 @@ export default function LoginScreen() {
                       end={{ x: 1, y: 0 }}
                     >
                       {loading ? (
-                        <Text style={styles.buttonText}>Sending...</Text>
+                        <ActivityIndicator color="#000" />
                       ) : (
-                        <>
+                        <View style={styles.buttonContent}>
                           <Text style={styles.buttonText}>Get Started</Text>
-                          <Ionicons name="arrow-forward" size={20} color="#000" style={{ marginLeft: 8 }} />
-                        </>
+                          <Ionicons name="arrow-forward" size={20} color="#000" />
+                        </View>
                       )}
                     </LinearGradient>
                   </TouchableOpacity>
-                </Animated.View>
+                </View>
 
-                <Animated.Text style={styles.termsText} entering={FadeInDown.delay(1300)}>
+                <Text style={styles.termsText}>
                   By continuing, you agree to our{' '}
                   <Text style={styles.termsLink}>Terms & Privacy Policy</Text>
-                </Animated.Text>
+                </Text>
               </View>
-            </Animated.View>
+            </View>
 
             {/* Bottom Features */}
-            <Animated.View style={styles.featuresContainer} entering={FadeInDown.delay(1400)}>
+            <View style={styles.featuresContainer}>
               <View style={styles.feature}>
                 <View style={styles.featureIcon}>
                   <Ionicons name="calendar" size={20} color="#4ade80" />
@@ -199,7 +157,7 @@ export default function LoginScreen() {
                 </View>
                 <Text style={styles.featureText}>Compete</Text>
               </View>
-            </Animated.View>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
@@ -281,9 +239,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 4,
     marginBottom: 12,
-    textShadowColor: 'rgba(74, 222, 128, 0.3)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 20,
   },
   taglineBox: {
     backgroundColor: '#4ade80',
@@ -376,10 +331,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   buttonGradient: {
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -388,6 +347,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#000',
+    marginRight: 8,
   },
   termsText: {
     fontSize: 11,
