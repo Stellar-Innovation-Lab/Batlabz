@@ -2921,6 +2921,41 @@ async def book_ground_for_match(match_id: str, ground_id: str, slot_id: str, cur
     if not slot.get("is_available", False):
         raise HTTPException(status_code=400, detail="Slot is not available")
     
+    # CRITICAL VALIDATION: Match time must match ground slot time
+    match_date = datetime.fromisoformat(match["date"]) if isinstance(match["date"], str) else match["date"]
+    slot_date = datetime.fromisoformat(slot["date"]) if isinstance(slot["date"], str) else slot["date"]
+    
+    # Validate date matches
+    if match_date.date() != slot_date.date():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Time mismatch: Match is on {match_date.date()} but ground slot is on {slot_date.date()}"
+        )
+    
+    # Validate time range matches (slot must cover match time)
+    match_hour = match_date.hour
+    slot_start_hour = int(slot["start_time"].split(":")[0])
+    slot_end_hour = int(slot["end_time"].split(":")[0])
+    
+    if not (slot_start_hour <= match_hour < slot_end_hour):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Time conflict: Match at {match_date.strftime('%I:%M %p')} but ground slot is {slot['start_time']}-{slot['end_time']}"
+        )
+    
+    # Check for double booking - ensure slot not already booked
+    existing_booking = await db.ground_bookings.find_one({
+        "ground_id": ground_id,
+        "slot_id": slot_id,
+        "status": {"$ne": "cancelled"}
+    })
+    
+    if existing_booking:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Slot already booked (Booking #{existing_booking['id'][:8]}). Please choose another slot."
+        )
+    
     # Check wallet balance
     if current_user.wallet_balance < slot["price"]:
         raise HTTPException(status_code=400, detail=f"Insufficient balance. Required: {slot['price']}")
