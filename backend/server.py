@@ -3018,7 +3018,7 @@ async def book_ground_for_match(match_id: str, ground_id: str, slot_id: str, cur
     # Save booking
     await db.ground_bookings.insert_one(booking.dict())
     
-    # Link to match
+    # Link to match and recalculate costs
     await db.matches.update_one(
         {"id": match_id},
         {"$set": {
@@ -3026,6 +3026,27 @@ async def book_ground_for_match(match_id: str, ground_id: str, slot_id: str, cur
             "ground_booking_id": booking.id,
             "location": ground["name"],
             "cost_breakdown.ground_fee": slot["price"]
+        }}
+    )
+    
+    # Recalculate match totals and per-player cost
+    updated_match = await db.matches.find_one({"id": match_id})
+    cost_breakdown = updated_match.get("cost_breakdown", {})
+    new_total = sum([
+        cost_breakdown.get("ground_fee", 0),
+        cost_breakdown.get("umpire_fee", 0),
+        cost_breakdown.get("balls_equipment", 0),
+        cost_breakdown.get("miscellaneous", 0)
+    ])
+    
+    player_count = len(updated_match.get("confirmed_player_ids", [])) or updated_match.get("player_limit", 22)
+    new_per_player = new_total / player_count if player_count > 0 else 0
+    
+    await db.matches.update_one(
+        {"id": match_id},
+        {"$set": {
+            "total_cost": new_total,
+            "per_player_cost": new_per_player
         }}
     )
     
