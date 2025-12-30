@@ -212,10 +212,8 @@ export default function EMoneyTopupScreen() {
 
   const renderProcessingStep = () => (
     <View style={styles.stepContainer}>
-      <MotiView
-        from={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'timing', duration: 500 }}
+      <Animated.View
+        entering={FadeIn.duration(500)}
         style={styles.processingContainer}
       >
         <ActivityIndicator size="large" color="#4ade80" />
