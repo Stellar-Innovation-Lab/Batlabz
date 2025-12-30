@@ -25,6 +25,11 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ.get('JWT_SECRET', 'batlabz_secret_key_2025')
 JWT_ALGORITHM = "HS256"
 
+# Fee Configuration
+PLATFORM_FEE_PER_PLAYER = 1.0  # AED 1 per player payment
+PAYOUT_FEE_FLAT = 5.0  # AED 5 flat fee
+PAYOUT_FEE_PERCENT = 1.5  # 1.5% of transaction
+
 app = FastAPI(title="Batlabz API", description="Cricket Pay & Play Platform")
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
