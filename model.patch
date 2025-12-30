@@ -1,0 +1,26 @@
+diff --git a/backend/server.py b/backend/server.py
+index 6f101f6..74d6724 100644
+--- a/backend/server.py
++++ b/backend/server.py
+@@ -284,6 +284,13 @@ class AddExpenseRequest(BaseModel):
+     amount: float
+ 
+ # Wallet Models
++class FeeBreakdown(BaseModel):
++    platform_fee: float = 0.0
++    payout_fee: float = 0.0
++    gateway_fee: float = 0.0
++    total_fees: float = 0.0
++    net_amount: float = 0.0
++
+ class WalletTransaction(BaseModel):
+     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+     user_id: str
+@@ -292,6 +299,7 @@ class WalletTransaction(BaseModel):
+     balance_after: float
+     description: str
+     reference_id: Optional[str] = None
++    fee_breakdown: Optional[FeeBreakdown] = None
+     created_at: datetime = Field(default_factory=datetime.utcnow)
+ 
+ class TopupRequest(BaseModel):
