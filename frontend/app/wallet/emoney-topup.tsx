@@ -208,25 +208,19 @@ export default function EMoneyTopupScreen() {
 
   const renderProcessingStep = () => (
     <View style={styles.stepContainer}>
-      <Animated.View
-        entering={FadeIn.duration(500)}
-        style={styles.processingContainer}
-      >
+      <View style={styles.processingContainer}>
         <ActivityIndicator size="large" color="#4ade80" />
         <Text style={styles.processingText}>Processing...</Text>
         <Text style={styles.processingSubtext}>Please wait while we process your top-up</Text>
-      </Animated.View>
+      </View>
     </View>
   );
 
   const renderSuccessStep = () => (
     <View style={styles.stepContainer}>
-      <Animated.View
-        entering={FadeIn.duration(500)}
-        style={styles.successIcon}
-      >
+      <View style={styles.successIcon}>
         <Ionicons name="checkmark-circle" size={80} color="#4ade80" />
-      </Animated.View>
+      </View>
       <Text style={styles.successTitle}>Top-up Successful!</Text>
       <Text style={styles.successSubtitle}>Your wallet has been credited</Text>
 
