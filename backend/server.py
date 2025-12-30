@@ -1322,13 +1322,20 @@ class EMoneyPayoutRequest(BaseModel):
 
 @api_router.post("/wallet/emoney/authorize")
 async def emoney_authorize(request: EMoneyAuthRequest, current_user: User = Depends(get_current_user)):
-    """Mock e& money authorization flow"""
-    # Simulate authorization process - accept 1234 or empty for demo
+    """Mock e& money authorization flow - Demo PIN: 1234"""
+    # Debug logging
+    logger.info(f"e& money auth attempt - PIN received: '{request.pin}' (type: {type(request.pin).__name__})")
+    
+    # Simulate authorization process - accept 1234 for demo
     pin_str = str(request.pin).strip()
-    if pin_str and pin_str != "1234":
-        raise HTTPException(status_code=400, detail=f"Invalid PIN. Use 1234 for demo.")
+    
+    # Accept 1234 or auto-approve for demo
+    if pin_str != "1234":
+        logger.warning(f"Invalid PIN attempt: '{pin_str}'")
+        raise HTTPException(status_code=400, detail=f"Invalid PIN. Please use 1234 for demo. (You entered: '{pin_str}')")
     
     authorization_code = str(uuid.uuid4())[:12].upper()
+    logger.info(f"e& money authorization successful for user {current_user.id}")
     
     return {
         "success": True,
