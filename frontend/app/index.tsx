@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Dimensions, Animated, Easing } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -8,60 +8,205 @@ import { Ionicons } from '@expo/vector-icons';
 const { width, height } = Dimensions.get('window');
 
 export default function SplashScreen() {
+  // Animation values
+  const ballScale = useRef(new Animated.Value(0)).current;
+  const ballY = useRef(new Animated.Value(-100)).current;
+  const ballRotate = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const taglineY = useRef(new Animated.Value(20)).current;
+  const lightsOpacity = useRef(new Animated.Value(0)).current;
+  const glowPulse = useRef(new Animated.Value(0.3)).current;
+
   useEffect(() => {
-    // Navigate to login after delay
+    // Stadium lights fade in
+    Animated.timing(lightsOpacity, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+
+    // Ball drop animation
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(ballScale, {
+          toValue: 1,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(ballY, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          delay: 200,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Bounce
+      Animated.spring(ballY, {
+        toValue: -30,
+        tension: 100,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.spring(ballY, {
+        toValue: 0,
+        tension: 80,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Ball rotation
+    Animated.loop(
+      Animated.timing(ballRotate, {
+        toValue: 1,
+        duration: 3000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    // Logo animation
+    Animated.parallel([
+      Animated.timing(logoOpacity, {
+        toValue: 1,
+        duration: 800,
+        delay: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoScale, {
+        toValue: 1,
+        tension: 50,
+        friction: 10,
+        delay: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(taglineY, {
+        toValue: 0,
+        tension: 50,
+        friction: 10,
+        delay: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Glow pulse
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowPulse, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowPulse, {
+          toValue: 0.3,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Navigate after animation
     const timer = setTimeout(() => {
       router.replace('/auth/login');
-    }, 2500);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, []);
+
+  const ballRotateInterpolate = ballRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       <LinearGradient
-        colors={['#0f172a', '#1e293b', '#0f172a']}
+        colors={['#0a0e1a', '#1a1f2e', '#0f172a']}
         style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
       >
+        {/* Stadium Lights Effect */}
+        <Animated.View style={[styles.lightsContainer, { opacity: lightsOpacity }]}>
+          <View style={[styles.light, styles.light1]} />
+          <View style={[styles.light, styles.light2]} />
+          <View style={[styles.light, styles.light3]} />
+          <View style={[styles.light, styles.light4]} />
+        </Animated.View>
+
         {/* Background Circles */}
         <View style={styles.circlesContainer}>
           <View style={[styles.circle, styles.circle1]} />
           <View style={[styles.circle, styles.circle2]} />
         </View>
 
-        {/* Main content */}
+        {/* Main Content */}
         <View style={styles.content}>
-          {/* Cricket ball */}
-          <View style={styles.ballContainer}>
+          {/* Glowing Background */}
+          <Animated.View style={[styles.glow, { opacity: glowPulse }]} />
+
+          {/* Cricket Ball */}
+          <Animated.View
+            style={[
+              styles.ballContainer,
+              {
+                transform: [
+                  { scale: ballScale },
+                  { translateY: ballY },
+                  { rotate: ballRotateInterpolate },
+                ],
+              },
+            ]}
+          >
             <View style={styles.ball}>
               <View style={styles.seam} />
               <View style={[styles.seam, styles.seam2]} />
+              <View style={styles.ballShine} />
             </View>
-          </View>
+          </Animated.View>
 
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>BATLABZ</Text>
-            <View style={styles.taglineContainer}>
-              <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
+          {/* Professional Logo */}
+          <Animated.View
+            style={[
+              styles.logoContainer,
+              {
+                opacity: logoOpacity,
+                transform: [{ scale: logoScale }],
+              },
+            ]}
+          >
+            <View style={styles.logoBox}>
+              <View style={styles.logoIconContainer}>
+                <Ionicons name="flash" size={28} color="#000" style={styles.logoIcon} />
+              </View>
+              <Text style={styles.logoText}>BATLABZ</Text>
             </View>
-          </View>
+            
+            <Animated.View style={[styles.taglineContainer, { transform: [{ translateY: taglineY }] }]}>
+              <View style={styles.taglineBadge}>
+                <Text style={styles.tagline}>PAY & PLAY CRICKET</Text>
+              </View>
+              <Text style={styles.subtitle}>🏏 UAE's Premier Cricket Community</Text>
+            </Animated.View>
+          </Animated.View>
 
-          {/* Subtitle */}
-          <View style={styles.textContainer}>
-            <Text style={styles.subtitle}>🏏 Welcome!</Text>
-            <Text style={styles.description}>Join UAE's premier cricket community</Text>
-          </View>
-
-          {/* Loading indicator */}
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#4ade80" />
-            <Text style={styles.loadingText}>Loading...</Text>
-          </View>
+          {/* Loading Indicator */}
+          <Animated.View style={[styles.loadingContainer, { opacity: logoOpacity }]}>
+            <View style={styles.loadingBar}>
+              <Animated.View style={[styles.loadingProgress, { opacity: glowPulse }]} />
+            </View>
+            <Text style={styles.loadingText}>Preparing your cricket experience...</Text>
+          </Animated.View>
         </View>
+
+        {/* Bottom Badge */}
+        <Animated.View style={[styles.bottomBadge, { opacity: logoOpacity }]}>
+          <Text style={styles.bottomText}>Powered by Innovation • Built for Cricket</Text>
+        </Animated.View>
       </LinearGradient>
     </View>
   );
@@ -74,105 +219,210 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
   },
-  circlesContainer: {
+  lightsContainer: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
+  },
+  light: {
+    position: 'absolute',
+    width: 2,
+    height: 300,
+    backgroundColor: 'rgba(74, 222, 128, 0.3)',
+    shadowColor: '#4ade80',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+  },
+  light1: {
+    top: -150,
+    left: '20%',
+    transform: [{ rotate: '15deg' }],
+  },
+  light2: {
+    top: -150,
+    left: '50%',
+    transform: [{ rotate: '-5deg' }],
+  },
+  light3: {
+    top: -150,
+    right: '30%',
+    transform: [{ rotate: '10deg' }],
+  },
+  light4: {
+    top: -150,
+    right: '10%',
+    transform: [{ rotate: '-15deg' }],
+  },
+  circlesContainer: {
+    ...StyleSheet.absoluteFillObject,
   },
   circle: {
     position: 'absolute',
     borderRadius: 1000,
-    backgroundColor: 'rgba(74, 222, 128, 0.05)',
+    backgroundColor: 'rgba(74, 222, 128, 0.03)',
   },
   circle1: {
-    width: 300,
-    height: 300,
-    top: -100,
-    left: -100,
+    width: 400,
+    height: 400,
+    top: -200,
+    left: -150,
   },
   circle2: {
-    width: 250,
-    height: 250,
-    bottom: 100,
+    width: 350,
+    height: 350,
+    bottom: -100,
     right: -100,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 40,
+  },
+  glow: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: '#4ade80',
+    shadowColor: '#4ade80',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 60,
   },
   ballContainer: {
-    marginBottom: 40,
+    marginBottom: 50,
   },
   ball: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#ef4444',
+    backgroundColor: '#dc2626',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.6,
+    shadowRadius: 25,
+    elevation: 15,
   },
   seam: {
     position: 'absolute',
-    width: 60,
-    height: 2,
+    width: 65,
+    height: 3,
     backgroundColor: '#fff',
-    borderRadius: 1,
-    transform: [{ rotate: '20deg' }],
+    borderRadius: 2,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    transform: [{ rotate: '25deg' }],
   },
   seam2: {
-    transform: [{ rotate: '-20deg' }],
+    transform: [{ rotate: '-25deg' }],
+  },
+  ballShine: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    top: 15,
+    left: 20,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 60,
+  },
+  logoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logoIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#4ade80',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#4ade80',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+  },
+  logoIcon: {
+    transform: [{ rotate: '-15deg' }],
   },
   logoText: {
-    fontSize: 48,
-    fontWeight: 'bold',
+    fontSize: 52,
+    fontWeight: '900',
     color: '#fff',
-    letterSpacing: 4,
+    letterSpacing: -1,
+    textShadowColor: 'rgba(74, 222, 128, 0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   taglineContainer: {
+    alignItems: 'center',
+  },
+  taglineBadge: {
     backgroundColor: '#4ade80',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     borderRadius: 20,
-    marginTop: 12,
+    marginBottom: 16,
+    shadowColor: '#4ade80',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   tagline: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#000',
     letterSpacing: 2,
   },
-  textContainer: {
-    alignItems: 'center',
-  },
   subtitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  description: {
     fontSize: 16,
     color: '#94a3b8',
     textAlign: 'center',
   },
   loadingContainer: {
-    marginTop: 60,
     alignItems: 'center',
   },
+  loadingBar: {
+    width: 200,
+    height: 4,
+    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  loadingProgress: {
+    height: '100%',
+    width: '75%',
+    backgroundColor: '#4ade80',
+    borderRadius: 2,
+    shadowColor: '#4ade80',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+  },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#94a3b8',
+    fontSize: 13,
+    color: '#64748b',
+    fontStyle: 'italic',
+  },
+  bottomBadge: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+  },
+  bottomText: {
+    fontSize: 11,
+    color: '#475569',
+    letterSpacing: 0.5,
   },
 });
