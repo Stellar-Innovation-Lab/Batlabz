@@ -6,7 +6,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || Constants.expoConfig?.hostUri?.split(':').shift() + ':8001' || 'https://cricket-payments-1.preview.emergentagent.com';
+const BACKEND_URL = 'https://cricket-payments-1.preview.emergentagent.com';
 
 export default function EMoneyTopupScreen() {
   const [step, setStep] = useState<'amount' | 'authorize' | 'processing' | 'success'>('amount');
