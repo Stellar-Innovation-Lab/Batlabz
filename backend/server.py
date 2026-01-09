@@ -3192,6 +3192,20 @@ async def seed_demo_data(current_user: User = Depends(get_current_user)):
     
     demo_users = []
     
+    # Create Admin
+    admin = User(
+        id="demo-admin-1",
+        phone="+971509999999",
+        name="Admin User",
+        email="admin@batlabz.ae",
+        role=UserRole.ADMIN,
+        playing_role=PlayingRole.ALL_ROUNDER,
+        wallet_balance=10000.0,
+        total_spent=0.0,
+        is_active=True
+    )
+    demo_users.append(admin)
+    
     # Create Captain
     captain = User(
         id="demo-captain-1",
