@@ -156,6 +156,7 @@ class User(BaseModel):
     profile_image: Optional[str] = None
     matches_played: int = 0
     total_spent: float = 0.0
+    is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
