@@ -529,6 +529,26 @@ async def search_users(query: str, current_user: User = Depends(get_current_user
     }).to_list(20)
     return [User(**u) for u in users]
 
+@api_router.post("/users/{user_id}/set-admin")
+async def set_user_as_admin(user_id: str, current_user: User = Depends(get_current_user)):
+    """Set a user as admin - requires existing admin or first-time setup"""
+    # Allow if current user is admin OR if no admins exist yet (bootstrap)
+    admin_count = await db.users.count_documents({"role": UserRole.ADMIN})
+    
+    if current_user.role != UserRole.ADMIN and admin_count > 0:
+        raise HTTPException(status_code=403, detail="Only admins can promote users to admin")
+    
+    user_data = await db.users.find_one({"id": user_id})
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"role": UserRole.ADMIN, "updated_at": datetime.utcnow()}}
+    )
+    
+    return {"message": f"User {user_data.get('name', 'Unknown')} is now an admin", "user_id": user_id}
+
 # ==================== PLAYER MANAGEMENT ROUTES ====================
 
 @api_router.get("/players")
