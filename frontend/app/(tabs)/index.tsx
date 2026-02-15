@@ -73,7 +73,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style=\"dark\" />
+      <StatusBar style="dark" />
       
       {/* Gradient Header */}
       <Animated.View style={{ transform: [{ translateY: headerY }] }}>
