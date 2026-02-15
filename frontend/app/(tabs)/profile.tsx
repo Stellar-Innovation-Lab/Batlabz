@@ -1,341 +1,89 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../src/components/theme';
-import { Card, Button } from '../../src/components';
 import { useAuthStore } from '../../src/store/authStore';
-import { PlayingRole } from '../../src/types';
-
-const PLAYING_ROLE_LABELS: Record<PlayingRole, string> = {
-  [PlayingRole.BATSMAN]: 'Batsman',
-  [PlayingRole.BOWLER]: 'Bowler',
-  [PlayingRole.ALL_ROUNDER]: 'All-Rounder',
-  [PlayingRole.WICKET_KEEPER]: 'Wicket Keeper',
-};
+import { StatusBar } from 'expo-status-bar';
+import { DS_COLORS, DS_SPACING, DS_RADIUS } from '../../src/components/DesignSystem';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/auth/login');
-          },
-        },
-      ]
-    );
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/auth/login');
   };
-
-  const menuItems = [
-    {
-      icon: 'person-outline',
-      title: 'Edit Profile',
-      subtitle: 'Update your information',
-      onPress: () => router.push('/profile/edit'),
-    },
-    {
-      icon: 'notifications-outline',
-      title: 'Notifications',
-      subtitle: 'View your notifications',
-      onPress: () => router.push('/notifications'),
-    },
-    {
-      icon: 'receipt-outline',
-      title: 'Transaction History',
-      subtitle: 'View all transactions',
-      onPress: () => router.push('/wallet/transactions'),
-    },
-    {
-      icon: 'settings-outline',
-      title: 'Settings',
-      subtitle: 'App settings & preferences',
-      onPress: () => router.push('/profile/settings'),
-    },
-    {
-      icon: 'help-circle-outline',
-      title: 'Help & Support',
-      subtitle: 'Get help with Batlabz',
-      onPress: () => Alert.alert('Support', 'Contact us at support@batlabz.com'),
-    },
-  ];
-
-  // Role-specific menu items
-  const roleMenuItems = [];
-  
-  if (user?.role === 'captain') {
-    roleMenuItems.push({
-      icon: 'trophy-outline',
-      title: 'Captain Dashboard',
-      subtitle: 'Manage your team & matches',
-      onPress: () => {
-        if (user.team_ids && user.team_ids.length > 0) {
-          router.push({ pathname: '/team/captain-dashboard', params: { teamId: user.team_ids[0] } });
-        } else {
-          Alert.alert('No Team', 'Create a team first to access captain dashboard');
-        }
-      },
-    });
-  }
-
-  if (user?.role === 'ground_owner') {
-    roleMenuItems.push({
-      icon: 'location-outline',
-      title: 'Ground Owner Dashboard',
-      subtitle: 'Manage your grounds',
-      onPress: () => router.push('/ground/owner-dashboard'),
-    });
-  }
-
-  if (user?.role === 'admin') {
-    roleMenuItems.push({
-      icon: 'shield-checkmark-outline',
-      title: 'Admin Dashboard',
-      subtitle: 'Platform administration',
-      onPress: () => router.push('/admin/dashboard'),
-    });
-  }
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
       <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity style={styles.editButton} onPress={() => router.push('/profile/edit')}>
+          <Ionicons name="create-outline" size={24} color={DS_COLORS.primary} />
+        </TouchableOpacity>
       </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Profile Card */}
-        <Card style={styles.profileCard}>
-          <View style={styles.profileHeader}>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={40} color={COLORS.primary} />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{user?.name || 'Player'}</Text>
-              {user?.nickname && <Text style={styles.profileNickname}>"{user.nickname}"</Text>}
-              <Text style={styles.profilePhone}>{user?.phone}</Text>
-            </View>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.profileCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{user?.name?.[0] || 'U'}</Text>
           </View>
+          <Text style={styles.userName}>{user?.name || 'User'}</Text>
+          <Text style={styles.userPhone}>{user?.phone}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{user?.role}</Text>
+          </View>
+        </View>
 
-          <View style={styles.profileStats}>
-            <View style={styles.profileStat}>
-              <Ionicons name="baseball" size={20} color={COLORS.primary} />
-              <Text style={styles.profileStatText}>
-                {user?.playing_role ? PLAYING_ROLE_LABELS[user.playing_role] : 'Player'}
-              </Text>
-            </View>
-            {user?.preferred_locations && user.preferred_locations.length > 0 && (
-              <View style={styles.profileStat}>
-                <Ionicons name="location" size={20} color={COLORS.secondary} />
-                <Text style={styles.profileStatText}>{user.preferred_locations.join(', ')}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Settings</Text>
+          {[
+            { icon: 'person-outline', label: 'Edit Profile', route: '/profile/edit' },
+            { icon: 'notifications-outline', label: 'Notifications', route: '/notifications' },
+            { icon: 'shield-checkmark-outline', label: 'Privacy & Security', route: '/profile/settings' },
+            { icon: 'help-circle-outline', label: 'Help & Support', route: '/profile/settings' },
+          ].map((item, i) => (
+            <TouchableOpacity key={i} style={styles.menuItem} onPress={() => router.push(item.route as any)}>
+              <View style={styles.menuIconBg}>
+                <Ionicons name={item.icon as any} size={20} color={DS_COLORS.primary} />
               </View>
-            )}
-          </View>
-        </Card>
-
-        {/* Wallet Summary */}
-        <Card style={styles.walletSummary} onPress={() => router.push('/(tabs)/wallet')}>
-          <View style={styles.walletRow}>
-            <View style={styles.walletInfo}>
-              <Text style={styles.walletLabel}>Wallet Balance</Text>
-              <Text style={styles.walletAmount}>AED {(user?.wallet_balance || 0).toFixed(2)}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
-          </View>
-        </Card>
-
-        {/* Role-Specific Menu Items */}
-        {roleMenuItems.length > 0 && (
-          <View style={styles.menuSection}>
-            {roleMenuItems.map((item, index) => (
-              <TouchableOpacity key={`role-${index}`} style={styles.menuItem} onPress={item.onPress}>
-                <View style={[styles.menuIcon, { backgroundColor: COLORS.primary + '20' }]}>
-                  <Ionicons name={item.icon as any} size={24} color={COLORS.primary} />
-                </View>
-                <View style={styles.menuContent}>
-                  <Text style={styles.menuTitle}>{item.title}</Text>
-                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Menu Items */}
-        <View style={styles.menuSection}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity key={index} style={styles.menuItem} onPress={item.onPress}>
-              <View style={styles.menuIcon}>
-                <Ionicons name={item.icon as any} size={24} color={COLORS.primary} />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>{item.title}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              <Text style={styles.menuText}>{item.label}</Text>
+              <Ionicons name="chevron-forward" size={20} color={DS_COLORS.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Logout Button */}
-        <Button
-          title="Logout"
-          onPress={handleLogout}
-          variant="outline"
-          fullWidth
-          style={styles.logoutButton}
-          textStyle={{ color: COLORS.error }}
-        />
-
-        <Text style={styles.version}>Batlabz v1.0.0</Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color={DS_COLORS.error} />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  title: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
-    paddingTop: 0,
-  },
-  profileCard: {
-    marginBottom: SPACING.md,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.backgroundLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  profileNickname: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-  profilePhone: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textMuted,
-    marginTop: 4,
-  },
-  profileStats: {
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    gap: SPACING.sm,
-  },
-  profileStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  profileStatText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-  },
-  walletSummary: {
-    marginBottom: SPACING.lg,
-  },
-  walletRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  walletInfo: {},
-  walletLabel: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textMuted,
-  },
-  walletAmount: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    marginTop: 4,
-  },
-  menuSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
-    marginBottom: SPACING.lg,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  menuIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.backgroundLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  menuContent: {
-    flex: 1,
-  },
-  menuTitle: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  menuSubtitle: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  logoutButton: {
-    borderColor: COLORS.error,
-    marginBottom: SPACING.lg,
-  },
-  version: {
-    textAlign: 'center',
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textMuted,
-    marginBottom: SPACING.xl,
-  },
+  container: { flex: 1, backgroundColor: DS_COLORS.background },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: DS_SPACING.lg, paddingVertical: DS_SPACING.lg, backgroundColor: DS_COLORS.surface, borderBottomWidth: 1, borderBottomColor: DS_COLORS.borderLight },
+  headerTitle: { fontSize: 28, fontWeight: '900', color: DS_COLORS.text },
+  editButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: DS_COLORS.primaryGhost, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: DS_COLORS.border },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: DS_SPACING.lg },
+  profileCard: { backgroundColor: DS_COLORS.surface, borderRadius: DS_RADIUS.xl, padding: DS_SPACING.xl, alignItems: 'center', marginBottom: DS_SPACING.lg, borderWidth: 1, borderColor: DS_COLORS.borderLight },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: DS_COLORS.primary, justifyContent: 'center', alignItems: 'center', marginBottom: DS_SPACING.md },
+  avatarText: { fontSize: 32, fontWeight: '900', color: '#fff' },
+  userName: { fontSize: 24, fontWeight: '800', color: DS_COLORS.text, marginBottom: 4 },
+  userPhone: { fontSize: 14, color: DS_COLORS.textSecondary, marginBottom: DS_SPACING.md },
+  roleBadge: { backgroundColor: DS_COLORS.primaryGhost, paddingHorizontal: 16, paddingVertical: 6, borderRadius: DS_RADIUS.md },
+  roleText: { fontSize: 12, color: DS_COLORS.primary, fontWeight: '700', textTransform: 'uppercase' },
+  section: { backgroundColor: DS_COLORS.surface, borderRadius: DS_RADIUS.xl, padding: DS_SPACING.md, marginBottom: DS_SPACING.lg, borderWidth: 1, borderColor: DS_COLORS.borderLight },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: DS_COLORS.text, paddingHorizontal: DS_SPACING.md, paddingVertical: DS_SPACING.sm, marginBottom: DS_SPACING.xs },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: DS_SPACING.md, borderRadius: DS_RADIUS.md },
+  menuIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: DS_COLORS.primaryGhost, justifyContent: 'center', alignItems: 'center', marginRight: DS_SPACING.md },
+  menuText: { flex: 1, fontSize: 15, fontWeight: '600', color: DS_COLORS.text },
+  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FEE2E2', paddingVertical: DS_SPACING.md, borderRadius: DS_RADIUS.lg, gap: 8, borderWidth: 1, borderColor: '#FCA5A5' },
+  logoutText: { fontSize: 16, fontWeight: '800', color: DS_COLORS.error },
 });
