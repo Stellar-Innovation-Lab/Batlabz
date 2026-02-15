@@ -1,73 +1,79 @@
-// Premium Blue-themed Design System
+// Indian Cricket Team - White Theme Design System
 export const COLORS = {
-  // Primary - Blue Theme from Design
-  primary: '#42C0E5',        // Light Blue/Cyan
-  primaryDark: '#2A79A6',    // Deep Teal/Blue
-  primaryLight: '#A9E1F5',   // Soft Blue
-  primaryGlow: 'rgba(66, 192, 229, 0.3)',
+  // Primary - Indian Cricket Team Royal Blue
+  primary: '#0033A0',        // Royal Blue (Indian Cricket Team)
+  primaryDark: '#001F5C',    // Darker Blue
+  primaryLight: '#4D7FDB',   // Sky Blue
+  primaryGlow: 'rgba(0, 51, 160, 0.3)',
   
-  // Secondary - Accent Blue
-  secondary: '#A9E1F5',      // Soft Blue
-  secondaryDark: '#42C0E5',  // Light Blue
-  secondaryLight: '#E7F3FB', // Very Light Blue
+  // Secondary - Light Blue Accent
+  secondary: '#4D7FDB',      // Sky Blue
+  secondaryDark: '#0033A0',  // Royal Blue
+  secondaryLight: '#A3C4F3', // Very Light Blue
   
-  // Accent - Vibrant Blue
+  // Accent - Indian Orange & Gold
   gold: '#FFD700',           // Gold for highlights
   goldDark: '#FFC400',
   goldLight: '#FFEA00',
   
-  // Background - Deep Blue Theme
-  background: '#2A79A6',     // Deep Blue (main app background)
-  backgroundLight: '#42C0E5', // Light Blue
-  backgroundGradientStart: '#2A79A6',
-  backgroundGradientEnd: '#1A5A7A',
+  // Background - WHITE THEME
+  background: '#FFFFFF',     // Pure White
+  backgroundLight: '#F8FAFC', // Off-white
+  backgroundGradientStart: '#FFFFFF',
+  backgroundGradientEnd: '#F8FAFC',
   
-  // Card - White/Light Cards
+  // Card - White Cards with Borders
   card: '#FFFFFF',           // White cards
   cardSolid: '#FFFFFF',
-  cardHover: '#F5F5F5',
-  cardHighlight: 'rgba(66, 192, 229, 0.1)',
+  cardHover: '#F8FAFC',
+  cardHighlight: 'rgba(0, 51, 160, 0.05)',
+  cardBorder: '#E2E8F0',     // Light border
   
-  // Glass Effect
-  glass: 'rgba(255, 255, 255, 0.08)',
-  glassBorder: 'rgba(255, 255, 255, 0.12)',
+  // Glass Effect (subtle on white)
+  glass: 'rgba(0, 51, 160, 0.03)',
+  glassBorder: 'rgba(0, 51, 160, 0.08)',
   
-  // Text
-  text: '#FFFFFF',           // White text on dark backgrounds
-  textSecondary: '#E7F3FB',  // Light text on dark backgrounds
-  textMuted: '#A3A3A3',      // Muted text
-  textGlow: 'rgba(255, 255, 255, 0.8)',
+  // Text - FOR WHITE BACKGROUND
+  text: '#0F172A',           // Dark text on white
+  textSecondary: '#64748B',  // Gray text
+  textMuted: '#94A3B8',      // Muted text
+  textGlow: 'rgba(0, 51, 160, 0.8)',
+  textOnPrimary: '#FFFFFF',  // White text on blue
   
   // Status Colors
-  success: '#4ade80',        // Green for success
-  successLight: 'rgba(74, 222, 128, 0.2)',
-  warning: '#FF6B00',        // Orange for warnings
-  warningLight: 'rgba(255, 107, 0, 0.2)',
-  error: '#FF453A',          // Red for errors
-  errorLight: 'rgba(255, 69, 58, 0.2)',
-  info: '#007AFF',           // Vibrant Blue
-  infoLight: 'rgba(0, 122, 255, 0.2)',
+  success: '#10b981',        // Green for success
+  successLight: 'rgba(16, 185, 129, 0.1)',
+  warning: '#f59e0b',        // Orange for warnings
+  warningLight: 'rgba(245, 158, 11, 0.1)',
+  error: '#ef4444',          // Red for errors
+  errorLight: 'rgba(239, 68, 68, 0.1)',
+  info: '#0033A0',           // Royal Blue
+  infoLight: 'rgba(0, 51, 160, 0.1)',
   
-  // Cricket Specific (adapted to blue theme)
-  cricketRed: '#FF453A',     // Red accent
+  // Cricket Specific - Indian Team Colors
+  cricketBlue: '#0033A0',    // Indian Cricket Blue
+  cricketOrange: '#FF9933',  // Indian Orange
   cricketBrown: '#92400E',   // Bat wood
-  pitchGreen: '#42C0E5',     // Now using blue
+  pitchGreen: '#10b981',     // Pitch green
   stumps: '#FFD700',         // Gold
   
   // Gradients (as arrays for LinearGradient)
-  gradientPrimary: ['#42C0E5', '#2A79A6'],
-  gradientGold: ['#FFD700', '#FF9500'],
-  gradientDark: ['#2A79A6', '#1A5A7A'],
-  gradientCard: ['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)'],
+  gradientPrimary: ['#0033A0', '#001F5C'],
+  gradientGold: ['#FFD700', '#FF9933'],
+  gradientDark: ['#0F172A', '#1E293B'],
+  gradientCard: ['rgba(255, 255, 255, 0.98)', 'rgba(248, 250, 252, 0.95)'],
   
   // Border
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderLight: 'rgba(255, 255, 255, 0.15)',
-  borderActive: '#42C0E5',
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
+  borderActive: '#0033A0',
   
   // Overlay
   overlay: 'rgba(0, 0, 0, 0.7)',
   overlayLight: 'rgba(0, 0, 0, 0.5)',
+  
+  // Shadow
+  shadow: 'rgba(0, 51, 160, 0.1)',
 };
 
 export const SPACING = {
