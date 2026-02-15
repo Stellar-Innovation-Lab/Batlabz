@@ -1,46 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  KeyboardAvoidingView, 
-  Platform, 
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  StatusBar
-} from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../src/components/theme';
 import { authAPI, getMeWithToken } from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
-
-const { width } = Dimensions.get('window');
+import { StatusBar } from 'expo-status-bar';
+import { DS_COLORS, DS_SPACING, DS_RADIUS } from '../../src/components/DesignSystem';
 
 export default function OTPScreen() {
   const router = useRouter();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const { login } = useAuthStore();
   const inputRef = useRef<TextInput>(null);
-  
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(30);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
+    const timer = setInterval(() => setCountdown((prev) => (prev > 0 ? prev - 1 : 0)), 1000);
+    Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
     setTimeout(() => inputRef.current?.focus(), 500);
+    return () => clearInterval(timer);
   }, []);
 
   const handleOtpChange = (value: string) => {
@@ -50,84 +34,39 @@ export default function OTPScreen() {
   };
 
   const handleVerify = async () => {
-    if (otp.length !== 6) {
-      setError('Please enter the complete 6-digit OTP');
-      return;
-    }
-
+    if (otp.length !== 6) { setError('Please enter complete 6-digit OTP'); return; }
     setError('');
     setLoading(true);
-
     try {
       const response = await authAPI.verifyOTP(phone, otp);
       const { access_token, is_new_user } = response.data;
-      
       const userResponse = await getMeWithToken(access_token);
-      const userData = { ...userResponse.data };
-      
-      await login(access_token, userData);
-      
-      if (is_new_user || !userData.name) {
+      await login(access_token, userResponse.data);
+      if (is_new_user || !userResponse.data.name) {
         router.replace('/auth/profile-setup');
       } else {
         router.replace('/(tabs)');
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Verification failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      setError(err.response?.data?.detail || 'Verification failed');
+    } finally { setLoading(false); }
   };
 
   const handleResend = async () => {
     if (countdown > 0) return;
-    
     try {
       await authAPI.requestOTP(phone);
       setCountdown(30);
       setError('');
-    } catch (err) {
-      setError('Failed to resend OTP. Please try again.');
-    }
+    } catch (err) { setError('Failed to resend OTP'); }
   };
 
-  const formatPhoneDisplay = (phoneNum: string) => {
-    if (!phoneNum) return '';
-    const cleaned = phoneNum.replace(/\D/g, '');
-    if (cleaned.length >= 12) {
-      return `+${cleaned.slice(0, 3)} ${cleaned.slice(3, 5)} ${cleaned.slice(5, 8)} ${cleaned.slice(8)}`;
-    }
-    return phoneNum;
-  };
-
-  const isComplete = otp.length === 6;
-
-  // Render OTP boxes
   const renderOTPBoxes = () => {
     const boxes = [];
-    const boxWidth = Math.min((width - SPACING.xl * 2 - SPACING.xs * 5) / 6, 50);
-    
     for (let i = 0; i < 6; i++) {
-      const isFilled = otp.length > i;
-      const isActive = otp.length === i;
-      
       boxes.push(
-        <View 
-          key={i} 
-          style={[
-            styles.otpBox,
-            { width: boxWidth },
-            isFilled && styles.otpBoxFilled,
-            isActive && styles.otpBoxActive,
-          ]}
-        >
-          <Text style={[
-            styles.otpDigit,
-            isFilled && styles.otpDigitFilled,
-          ]}>
-            {otp[i] || ''}
-          </Text>
-          {isActive && <View style={styles.cursor} />}
+        <View key={i} style={[styles.otpBox, otp.length > i && styles.otpBoxFilled, otp.length === i && styles.otpBoxActive]}>
+          <Text style={[styles.otpDigit, otp.length > i && styles.otpDigitFilled]}>{otp[i] || ''}</Text>
         </View>
       );
     }
@@ -135,379 +74,95 @@ export default function OTPScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
-      {/* Gradient Background */}
-      <LinearGradient
-        colors={['#0f172a', '#1e293b', '#0f172a']}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+      <View style={styles.background}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={DS_COLORS.text} />
+        </TouchableOpacity>
 
-      {/* Gradient Orbs */}
-      <View style={[styles.orb, styles.orb1]} />
-      <View style={[styles.orb, styles.orb2]} />
-
-      <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity 
-              onPress={() => router.back()} 
-              style={styles.backButton}
-            >
-              <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-          >
-            {/* Icon */}
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
             <View style={styles.iconContainer}>
-              <LinearGradient
-                colors={[COLORS.primary, '#00e676']}
-                style={styles.iconGradient}
-              >
-                <Ionicons name="shield-checkmark" size={36} color="#000" />
+              <LinearGradient colors={[DS_COLORS.primary, DS_COLORS.primaryDark]} style={styles.iconBg}>
+                <Ionicons name="shield-checkmark" size={36} color="#fff" />
               </LinearGradient>
             </View>
 
-            {/* Title */}
-            <View style={styles.titleSection}>
-              <Text style={styles.title}>Verify Your Number</Text>
-              <Text style={styles.subtitle}>
-                Enter the 6-digit code sent to
-              </Text>
-              <Text style={styles.phoneNumber}>{formatPhoneDisplay(phone)}</Text>
-            </View>
+            <Text style={styles.title}>Verify Your Number</Text>
+            <Text style={styles.subtitle}>Enter the 6-digit code sent to</Text>
+            <Text style={styles.phoneNumber}>{phone}</Text>
 
-            {/* Hidden Input for keyboard */}
-            <TextInput
-              ref={inputRef}
-              style={styles.hiddenInput}
-              value={otp}
-              onChangeText={handleOtpChange}
-              keyboardType="number-pad"
-              maxLength={6}
-              autoFocus
-            />
-
-            {/* OTP Boxes */}
-            <TouchableOpacity 
-              activeOpacity={1}
-              onPress={() => inputRef.current?.focus()}
-              style={styles.otpContainer}
-            >
+            <TextInput ref={inputRef} style={styles.hiddenInput} value={otp} onChangeText={handleOtpChange} keyboardType="number-pad" maxLength={6} autoFocus />
+            
+            <TouchableOpacity activeOpacity={1} onPress={() => inputRef.current?.focus()} style={styles.otpContainer}>
               {renderOTPBoxes()}
             </TouchableOpacity>
 
-            {/* Error */}
             {error ? (
               <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={16} color={COLORS.error} />
+                <Ionicons name="alert-circle" size={16} color={DS_COLORS.error} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
 
-            {/* Verify Button */}
-            <TouchableOpacity
-              onPress={handleVerify}
-              disabled={!isComplete || loading}
-              activeOpacity={0.85}
-              style={styles.buttonContainer}
-            >
-              <LinearGradient
-                colors={isComplete 
-                  ? [COLORS.primary, '#00e676']
-                  : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.verifyButton}
-              >
-                {loading ? (
-                  <Text style={styles.buttonText}>Verifying...</Text>
-                ) : (
-                  <>
-                    <Text style={[
-                      styles.buttonText,
-                      !isComplete && styles.buttonTextDisabled
-                    ]}>
-                      Verify & Continue
-                    </Text>
-                    <View style={[
-                      styles.buttonIcon,
-                      !isComplete && styles.buttonIconDisabled
-                    ]}>
-                      <Ionicons 
-                        name="checkmark" 
-                        size={18} 
-                        color={isComplete ? '#000' : 'rgba(255,255,255,0.3)'} 
-                      />
-                    </View>
-                  </>
-                )}
+            <TouchableOpacity onPress={handleVerify} disabled={otp.length !== 6 || loading} style={[styles.button, (otp.length !== 6 || loading) && styles.buttonDisabled]}>
+              <LinearGradient colors={otp.length === 6 ? [DS_COLORS.primary, DS_COLORS.primaryDark] : ['#E5E7EB', '#D1D5DB']} style={styles.buttonGradient}>
+                <Text style={[styles.buttonText, otp.length !== 6 && styles.buttonTextDisabled]}>
+                  {loading ? 'Verifying...' : 'Verify & Continue'}
+                </Text>
+                <Ionicons name="checkmark" size={20} color={otp.length === 6 ? '#fff' : '#9CA3AF'} />
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Resend */}
             <View style={styles.resendContainer}>
-              <Text style={styles.resendText}>Didn't receive the code? </Text>
-              <TouchableOpacity 
-                onPress={handleResend}
-                disabled={countdown > 0}
-              >
-                <Text style={[
-                  styles.resendLink,
-                  countdown > 0 && styles.resendLinkDisabled
-                ]}>
+              <TouchableOpacity onPress={handleResend} disabled={countdown > 0}>
+                <Text style={[styles.resendText, countdown === 0 && styles.resendActive]}>
                   {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Demo Hint */}
             <View style={styles.demoHint}>
-              <Ionicons name="information-circle" size={16} color={COLORS.gold} />
-              <Text style={styles.demoHintText}>
-                Demo: Use OTP <Text style={styles.demoCode}>123456</Text>
-              </Text>
+              <Ionicons name="information-circle" size={16} color="#F59E0B" />
+              <Text style={styles.demoHintText}>Demo: Use OTP <Text style={styles.demoCode}>123456</Text></Text>
             </View>
-
-            {/* Bottom spacing */}
-            <View style={{ height: SPACING.xl }} />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+          </Animated.View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-  },
-  safeArea: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: SPACING.xl,
-  },
-
-  // Orbs
-  orb: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  orb1: {
-    width: 300,
-    height: 300,
-    top: -100,
-    right: -100,
-    backgroundColor: COLORS.primary,
-    opacity: 0.08,
-  },
-  orb2: {
-    width: 250,
-    height: 250,
-    bottom: 50,
-    left: -80,
-    backgroundColor: COLORS.gold,
-    opacity: 0.06,
-  },
-
-  // Header
-  header: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Icon
-  iconContainer: {
-    alignItems: 'center',
-    marginTop: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  iconGradient: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Title
-  titleSection: {
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: FONT_SIZES.sm,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  phoneNumber: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginTop: 4,
-  },
-
-  // Hidden input
-  hiddenInput: {
-    position: 'absolute',
-    opacity: 0,
-    height: 1,
-    width: 1,
-  },
-
-  // OTP boxes
-  otpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    marginBottom: SPACING.lg,
-  },
-  otpBox: {
-    height: 54,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  otpBoxFilled: {
-    borderColor: COLORS.primary,
-    backgroundColor: 'rgba(0,200,83,0.08)',
-  },
-  otpBoxActive: {
-    borderColor: COLORS.primary,
-  },
-  otpDigit: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.3)',
-  },
-  otpDigitFilled: {
-    color: '#fff',
-  },
-  cursor: {
-    position: 'absolute',
-    width: 2,
-    height: 22,
-    backgroundColor: COLORS.primary,
-  },
-
-  // Error
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-    gap: SPACING.xs,
-  },
-  errorText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.error,
-  },
-
-  // Button
-  buttonContainer: {
-    borderRadius: BORDER_RADIUS.xl,
-    overflow: 'hidden',
-    marginBottom: SPACING.md,
-  },
-  verifyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.md,
-    gap: SPACING.sm,
-  },
-  buttonText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '700',
-    color: '#000',
-  },
-  buttonTextDisabled: {
-    color: 'rgba(255,255,255,0.35)',
-  },
-  buttonIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonIconDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-
-  // Resend
-  resendContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  resendText: {
-    fontSize: FONT_SIZES.sm,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  resendLink: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  resendLinkDisabled: {
-    color: 'rgba(255,255,255,0.3)',
-  },
-
-  // Demo hint
-  demoHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: 'rgba(255,215,0,0.1)',
-    borderRadius: BORDER_RADIUS.lg,
-    alignSelf: 'center',
-  },
-  demoHintText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gold,
-  },
-  demoCode: {
-    fontWeight: '700',
-    color: '#fff',
-  },
+  container: { flex: 1 },
+  background: { flex: 1, backgroundColor: DS_COLORS.background },
+  backButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: DS_COLORS.surface, justifyContent: 'center', alignItems: 'center', margin: DS_SPACING.lg, ...{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 } },
+  scrollContent: { paddingHorizontal: DS_SPACING.lg, paddingTop: DS_SPACING.xl, paddingBottom: DS_SPACING.xxl },
+  content: { alignItems: 'center' },
+  iconContainer: { marginBottom: DS_SPACING.xl },
+  iconBg: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', ...{ shadowColor: DS_COLORS.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16 } },
+  title: { fontSize: 28, fontWeight: '900', color: DS_COLORS.text, marginBottom: DS_SPACING.sm, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, color: DS_COLORS.textSecondary, marginBottom: DS_SPACING.xs, fontWeight: '500' },
+  phoneNumber: { fontSize: 17, fontWeight: '800', color: DS_COLORS.primary, marginBottom: DS_SPACING.xl },
+  hiddenInput: { position: 'absolute', opacity: 0 },
+  otpContainer: { flexDirection: 'row', gap: 12, marginBottom: DS_SPACING.xl },
+  otpBox: { width: 52, height: 64, borderRadius: DS_RADIUS.md, backgroundColor: DS_COLORS.surface, borderWidth: 2, borderColor: DS_COLORS.border, justifyContent: 'center', alignItems: 'center' },
+  otpBoxFilled: { borderColor: DS_COLORS.primary, backgroundColor: DS_COLORS.primaryGhost },
+  otpBoxActive: { borderColor: DS_COLORS.primary, borderWidth: 2.5 },
+  otpDigit: { fontSize: 28, fontWeight: '800', color: DS_COLORS.textMuted },
+  otpDigitFilled: { color: DS_COLORS.primary },
+  errorContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FEE2E2', paddingHorizontal: DS_SPACING.md, paddingVertical: DS_SPACING.sm, borderRadius: DS_RADIUS.md, marginBottom: DS_SPACING.lg },
+  errorText: { fontSize: 13, color: DS_COLORS.error, fontWeight: '600' },
+  button: { width: '100%', borderRadius: DS_RADIUS.lg, overflow: 'hidden', marginBottom: DS_SPACING.lg, ...{ shadowColor: DS_COLORS.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 12 } },
+  buttonDisabled: { opacity: 0.5, ...{ shadowOpacity: 0 } },
+  buttonGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, gap: 10 },
+  buttonText: { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  buttonTextDisabled: { color: '#9CA3AF' },
+  resendContainer: { marginBottom: DS_SPACING.xl },
+  resendText: { fontSize: 14, color: DS_COLORS.textMuted, fontWeight: '600' },
+  resendActive: { color: DS_COLORS.primary, fontWeight: '800' },
+  demoHint: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FEF3C7', paddingHorizontal: DS_SPACING.md, paddingVertical: DS_SPACING.sm, borderRadius: DS_RADIUS.md },
+  demoHintText: { fontSize: 12, color: '#92400E', fontWeight: '600' },
+  demoCode: { fontWeight: '900', color: '#78350F' },
 });

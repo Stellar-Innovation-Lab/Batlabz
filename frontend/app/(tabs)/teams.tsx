@@ -1,270 +1,129 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../src/components/theme';
-import { Card, Button, LoadingScreen } from '../../src/components';
 import { teamAPI } from '../../src/services/api';
-import { Team } from '../../src/types';
-import { useAuthStore } from '../../src/store/authStore';
+import { StatusBar } from 'expo-status-bar';
+import { DS_COLORS, DS_SPACING, DS_RADIUS } from '../../src/components/DesignSystem';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function TeamsScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchTeams = async () => {
     try {
-      const response = await teamAPI.getMyTeams();
-      setTeams(response.data);
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+      const res = await teamAPI.getMyTeams();
+      setTeams(res.data || []);
+    } catch (error) { console.error(error); } finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchTeams();
-  }, []);
+  useEffect(() => { fetchTeams(); }, []);
 
   if (loading) {
-    return <LoadingScreen message="Loading teams..." />;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={DS_COLORS.primary} />
+        <Text style={styles.loadingText}>Loading teams...</Text>
+      </View>
+    );
   }
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+      
       <View style={styles.header}>
-        <Text style={styles.title}>My Teams</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/team/join')}>
-            <Ionicons name="enter-outline" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/team/create')}>
-            <Ionicons name="add" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>Teams</Text>
+          <Text style={styles.headerSubtitle}>{teams.length} teams</Text>
         </View>
+        <TouchableOpacity style={styles.createButton} onPress={() => router.push('/team/create')}>
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {teams.length > 0 ? (
-          teams.map((team) => (
-            <Card
-              key={team.id}
-              style={styles.teamCard}
-              onPress={() => router.push(`/team/${team.id}`)}
-              variant={team.captain_id === user?.id ? 'highlight' : 'default'}
-            >
-              <View style={styles.teamHeader}>
-                <View style={styles.teamAvatar}>
-                  {team.logo ? (
-                    <Text style={styles.teamLogo}>{team.logo}</Text>
-                  ) : (
-                    <Ionicons name="people" size={32} color={COLORS.primary} />
-                  )}
-                </View>
-                <View style={styles.teamInfo}>
-                  <Text style={styles.teamName}>{team.name}</Text>
-                  <View style={styles.teamMeta}>
-                    <Ionicons name="location-outline" size={14} color={COLORS.textMuted} />
-                    <Text style={styles.teamLocation}>{team.home_location}</Text>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchTeams(); }} tintColor={DS_COLORS.primary} />}>
+        
+        {teams.length > 0 ? teams.map((team) => (
+          <TouchableOpacity key={team.id} style={styles.teamCard} onPress={() => router.push(`/team/${team.id}`)} activeOpacity={0.95}>
+            <View style={styles.teamHeader}>
+              <View style={styles.teamIconBg}>
+                <Ionicons name="people" size={28} color={DS_COLORS.primary} />
+              </View>
+              <View style={styles.teamInfo}>
+                <Text style={styles.teamName}>{team.name}</Text>
+                <View style={styles.teamMeta}>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="person" size={12} color={DS_COLORS.textMuted} />
+                    <Text style={styles.metaText}>{team.player_ids?.length || 0} players</Text>
+                  </View>
+                  <View style={styles.metaDot} />
+                  <View style={styles.metaItem}>
+                    <Ionicons name="trophy" size={12} color={DS_COLORS.textMuted} />
+                    <Text style={styles.metaText}>{team.wins || 0}W-{team.losses || 0}L</Text>
                   </View>
                 </View>
-                {team.captain_id === user?.id && (
-                  <View style={styles.captainBadge}>
-                    <Ionicons name="star" size={14} color={COLORS.gold} />
-                    <Text style={styles.captainText}>Captain</Text>
-                  </View>
-                )}
               </View>
-
-              <View style={styles.teamStats}>
-                <View style={styles.teamStat}>
-                  <Text style={styles.teamStatValue}>{team.player_ids?.length || 0}</Text>
-                  <Text style={styles.teamStatLabel}>Players</Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.teamStat}>
-                  <Text style={styles.inviteCode}>{team.invite_code}</Text>
-                  <Text style={styles.teamStatLabel}>Invite Code</Text>
-                </View>
-              </View>
-            </Card>
-          ))
-        ) : (
-          <Card style={styles.emptyCard}>
-            <Ionicons name="people-outline" size={64} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No Teams Yet</Text>
-            <Text style={styles.emptyText}>Create a team or join one using an invite code</Text>
-            <View style={styles.emptyActions}>
-              <Button
-                title="Create Team"
-                onPress={() => router.push('/team/create')}
-                size="md"
-                style={{ marginRight: SPACING.sm }}
-              />
-              <Button
-                title="Join Team"
-                onPress={() => router.push('/team/join')}
-                variant="outline"
-                size="md"
-              />
+              <Ionicons name="chevron-forward" size={20} color={DS_COLORS.textMuted} />
             </View>
-          </Card>
+            {team.pool_balance > 0 && (
+              <View style={styles.poolBadge}>
+                <Ionicons name="wallet" size={14} color={DS_COLORS.primary} />
+                <Text style={styles.poolText}>Pool: AED {team.pool_balance.toFixed(2)}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )) : (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconBg}>
+              <Ionicons name="people-outline" size={56} color={DS_COLORS.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>No Teams Yet</Text>
+            <Text style={styles.emptyText}>Create or join a team to start playing</Text>
+            <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/team/create')}>
+              <LinearGradient colors={[DS_COLORS.primary, DS_COLORS.primaryDark]} style={styles.emptyButtonGradient}>
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.emptyButtonText}>Create Team</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         )}
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  title: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContent: {
-    padding: SPACING.lg,
-    paddingTop: 0,
-  },
-  teamCard: {
-    marginBottom: SPACING.md,
-  },
-  teamHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  teamAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.backgroundLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  teamLogo: {
-    fontSize: 28,
-  },
-  teamInfo: {
-    flex: 1,
-  },
-  teamName: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  teamMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  teamLocation: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textMuted,
-  },
-  captainBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.gold + '20',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  captainText: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.gold,
-    fontWeight: '600',
-  },
-  teamStats: {
-    flexDirection: 'row',
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  teamStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  teamStatValue: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  teamStatLabel: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  inviteCode: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    letterSpacing: 2,
-  },
-  divider: {
-    width: 1,
-    backgroundColor: COLORS.border,
-  },
-  emptyCard: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xxl,
-  },
-  emptyTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.lg,
-  },
-  emptyText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.lg,
-  },
-  emptyActions: {
-    flexDirection: 'row',
-  },
+  container: { flex: 1, backgroundColor: DS_COLORS.background },
+  loadingContainer: { flex: 1, backgroundColor: DS_COLORS.background, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: DS_SPACING.md, fontSize: 16, color: DS_COLORS.textSecondary, fontWeight: '600' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: DS_SPACING.lg, paddingVertical: DS_SPACING.lg, backgroundColor: DS_COLORS.surface, borderBottomWidth: 1, borderBottomColor: DS_COLORS.borderLight },
+  headerTitle: { fontSize: 28, fontWeight: '900', color: DS_COLORS.text, letterSpacing: -0.5, marginBottom: 4 },
+  headerSubtitle: { fontSize: 14, color: DS_COLORS.textSecondary, fontWeight: '500' },
+  createButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: DS_COLORS.primary, justifyContent: 'center', alignItems: 'center', ...{ shadowColor: DS_COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 } },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: DS_SPACING.lg },
+  teamCard: { backgroundColor: DS_COLORS.surface, borderRadius: DS_RADIUS.xl, padding: DS_SPACING.lg, marginBottom: DS_SPACING.md, borderWidth: 1, borderColor: DS_COLORS.borderLight, ...{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 } },
+  teamHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: DS_SPACING.sm },
+  teamIconBg: { width: 56, height: 56, borderRadius: 28, backgroundColor: DS_COLORS.primaryGhost, justifyContent: 'center', alignItems: 'center', marginRight: DS_SPACING.md },
+  teamInfo: { flex: 1 },
+  teamName: { fontSize: 18, fontWeight: '800', color: DS_COLORS.text, marginBottom: 6 },
+  teamMeta: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 13, color: DS_COLORS.textMuted, fontWeight: '500' },
+  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: DS_COLORS.border },
+  poolBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: DS_COLORS.primaryGhost, paddingHorizontal: 12, paddingVertical: 8, borderRadius: DS_RADIUS.md, alignSelf: 'flex-start', gap: 6, marginTop: DS_SPACING.sm },
+  poolText: { fontSize: 13, color: DS_COLORS.primary, fontWeight: '700' },
+  emptyState: { backgroundColor: DS_COLORS.surface, borderRadius: DS_RADIUS.xl, padding: DS_SPACING.xxl, alignItems: 'center', borderWidth: 2, borderColor: DS_COLORS.borderLight, borderStyle: 'dashed' },
+  emptyIconBg: { width: 96, height: 96, borderRadius: 48, backgroundColor: DS_COLORS.primaryGhost, justifyContent: 'center', alignItems: 'center', marginBottom: DS_SPACING.lg },
+  emptyTitle: { fontSize: 20, fontWeight: '800', color: DS_COLORS.text, marginBottom: DS_SPACING.sm },
+  emptyText: { fontSize: 14, color: DS_COLORS.textSecondary, textAlign: 'center', marginBottom: DS_SPACING.xl, lineHeight: 22 },
+  emptyButton: { borderRadius: DS_RADIUS.lg, overflow: 'hidden', ...{ shadowColor: DS_COLORS.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 12 } },
+  emptyButtonGradient: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 28, gap: 8 },
+  emptyButtonText: { fontSize: 16, fontWeight: '800', color: '#fff' },
 });
