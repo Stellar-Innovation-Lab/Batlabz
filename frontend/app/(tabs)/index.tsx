@@ -84,7 +84,7 @@ export default function HomeScreen() {
               <Text style={styles.userName}>{user?.name || 'Player'} \ud83c\udfcf</Text>
             </View>
             <TouchableOpacity style={styles.notifButton} onPress={() => router.push('/notifications')}>
-              <Ionicons name=\"notifications\" size={24} color=\"#fff\" />
+              <Ionicons name='notifications' size={24} color='#fff' />
               {unreadCount > 0 && (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifBadgeText}>{unreadCount}</Text>
@@ -95,7 +95,7 @@ export default function HomeScreen() {
         </LinearGradient>
       </Animated.View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor=\"#0033A0\" />}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor='#0033A0' />}>
         
         {/* Wallet Card - Glassmorphism */}
         <Animated.View style={{ opacity: cardsOpacity }}>
@@ -108,18 +108,18 @@ export default function HomeScreen() {
                   <Text style={styles.walletAmount}>AED {(user?.wallet_balance || 0).toFixed(2)}</Text>
                   <View style={styles.walletActions}>
                     <TouchableOpacity style={styles.walletActionBtn} onPress={() => router.push('/wallet/emoney-topup')}>
-                      <Ionicons name=\"add-circle\" size={16} color=\"#fff\" />
+                      <Ionicons name='add-circle' size={16} color='#fff' />
                       <Text style={styles.walletActionText}>Top Up</Text>
                     </TouchableOpacity>
                     <View style={styles.actionDivider} />
                     <TouchableOpacity style={styles.walletActionBtn} onPress={() => router.push('/wallet/enhanced-transactions')}>
-                      <Ionicons name=\"receipt\" size={16} color=\"#fff\" />
+                      <Ionicons name='receipt' size={16} color='#fff' />
                       <Text style={styles.walletActionText}>History</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
                 <View style={styles.walletIconBg}>
-                  <Ionicons name=\"wallet\" size={48} color=\"rgba(255,255,255,0.15)\" />
+                  <Ionicons name='wallet' size={48} color='rgba(255,255,255,0.15)' />
                 </View>
               </View>
             </LinearGradient>
@@ -130,21 +130,21 @@ export default function HomeScreen() {
         <Animated.View style={[styles.statsRow, { transform: [{ translateY: statsY }] }]}>
           <View style={styles.statCard}>
             <View style={styles.statIconBg}>
-              <Ionicons name=\"calendar\" size={24} color=\"#0033A0\" />
+              <Ionicons name='calendar' size={24} color='#0033A0' />
             </View>
             <Text style={styles.statValue}>{dashboard?.total_matches || 0}</Text>
             <Text style={styles.statLabel}>Matches</Text>
           </View>
           <View style={styles.statCard}>
             <View style={styles.statIconBg}>
-              <Ionicons name=\"people\" size={24} color=\"#FF9933\" />
+              <Ionicons name='people' size={24} color='#FF9933' />
             </View>
             <Text style={styles.statValue}>{dashboard?.total_teams || 0}</Text>
             <Text style={styles.statLabel}>Teams</Text>
           </View>
           <View style={styles.statCard}>
             <View style={styles.statIconBg}>
-              <Ionicons name=\"trophy\" size={24} color=\"#FFD700\" />
+              <Ionicons name='trophy' size={24} color='#FFD700' />
             </View>
             <Text style={styles.statValue}>{dashboard?.wins || 0}</Text>
             <Text style={styles.statLabel}>Wins</Text>
@@ -157,25 +157,25 @@ export default function HomeScreen() {
           <View style={styles.actionsGrid}>
             <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/match/create')}>
               <LinearGradient colors={['#0033A0', '#001F5C']} style={styles.actionGradient}>
-                <Ionicons name=\"add-circle\" size={32} color=\"#fff\" />
+                <Ionicons name='add-circle' size={32} color='#fff' />
                 <Text style={styles.actionText}>Create Match</Text>
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/players')}>
               <LinearGradient colors={['#FF9933', '#FFB366']} style={styles.actionGradient}>
-                <Ionicons name=\"people\" size={32} color=\"#fff\" />
+                <Ionicons name='people' size={32} color='#fff' />
                 <Text style={styles.actionText}>Players</Text>
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/grounds')}>
               <LinearGradient colors={['#4D7FDB', '#6B93E8']} style={styles.actionGradient}>
-                <Ionicons name=\"location\" size={32} color=\"#fff\" />
+                <Ionicons name='location' size={32} color='#fff' />
                 <Text style={styles.actionText}>Book Ground</Text>
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/ai')}>
               <LinearGradient colors={['#10b981', '#34d399']} style={styles.actionGradient}>
-                <Ionicons name=\"sparkles\" size={32} color=\"#fff\" />
+                <Ionicons name='sparkles' size={32} color='#fff' />
                 <Text style={styles.actionText}>AI Hub</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -206,18 +206,18 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.matchDetails}>
                   <View style={styles.matchDetail}>
-                    <Ionicons name=\"location-outline\" size={16} color=\"#64748B\" />
+                    <Ionicons name='location-outline' size={16} color='#64748B' />
                     <Text style={styles.matchDetailText}>{match.location}</Text>
                   </View>
                   <View style={styles.matchDetail}>
-                    <Ionicons name=\"people-outline\" size={16} color=\"#64748B\" />
+                    <Ionicons name='people-outline' size={16} color='#64748B' />
                     <Text style={styles.matchDetailText}>{match.confirmed_player_ids?.length || 0} Players</Text>
                   </View>
                 </View>
                 <View style={styles.matchFooter}>
                   <Text style={styles.matchCost}>AED {match.per_player_cost?.toFixed(2) || '0.00'}</Text>
                   <View style={styles.matchArrow}>
-                    <Ionicons name=\"chevron-forward\" size={20} color=\"#0033A0\" />
+                    <Ionicons name='chevron-forward' size={20} color='#0033A0' />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -225,13 +225,13 @@ export default function HomeScreen() {
           ) : (
             <View style={styles.emptyState}>
               <View style={styles.emptyIconBg}>
-                <Ionicons name=\"calendar-outline\" size={48} color=\"#94A3B8\" />
+                <Ionicons name='calendar-outline' size={48} color='#94A3B8' />
               </View>
               <Text style={styles.emptyTitle}>No Upcoming Matches</Text>
               <Text style={styles.emptyText}>Create a match to get started</Text>
               <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/match/create')}>
                 <LinearGradient colors={['#0033A0', '#001F5C']} style={styles.emptyButtonGradient}>
-                  <Ionicons name=\"add\" size={20} color=\"#fff\" />
+                  <Ionicons name='add' size={20} color='#fff' />
                   <Text style={styles.emptyButtonText}>Create Match</Text>
                 </LinearGradient>
               </TouchableOpacity>
