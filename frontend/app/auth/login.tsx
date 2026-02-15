@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 25, marginBottom: 20, shadowColor: '#10B981', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
   badgeText: { fontSize: 12, fontWeight: '800', color: '#fff', letterSpacing: 2.5 },
   welcomeText: { fontSize: 26, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 15, color: '#6B7280', textAlign: 'center', fontWeight: '500' },
+  subtitle: { fontSize: 15, color: '#64748B', textAlign: 'center', fontWeight: '600' },
   cardContainer: { paddingHorizontal: 24 },
   card: { backgroundColor: '#fff', borderRadius: 24, padding: 28, shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 12, borderWidth: 1, borderColor: '#F3F4F6' },
   label: { fontSize: 13, fontWeight: '800', color: '#111827', marginBottom: 12, letterSpacing: 1.2 },
