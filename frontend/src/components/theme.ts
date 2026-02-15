@@ -1,69 +1,69 @@
-// Premium Cricket-themed Design System
+// Premium Blue-themed Design System
 export const COLORS = {
-  // Primary - Cricket Pitch Green
-  primary: '#00C853',
-  primaryDark: '#00A844',
-  primaryLight: '#69F0AE',
-  primaryGlow: 'rgba(0, 200, 83, 0.3)',
+  // Primary - Blue Theme from Design
+  primary: '#42C0E5',        // Light Blue/Cyan
+  primaryDark: '#2A79A6',    // Deep Teal/Blue
+  primaryLight: '#A9E1F5',   // Soft Blue
+  primaryGlow: 'rgba(66, 192, 229, 0.3)',
   
-  // Secondary - Stadium Orange/Gold
-  secondary: '#FF6D00',
-  secondaryDark: '#E65100',
-  secondaryLight: '#FFAB40',
+  // Secondary - Accent Blue
+  secondary: '#A9E1F5',      // Soft Blue
+  secondaryDark: '#42C0E5',  // Light Blue
+  secondaryLight: '#E7F3FB', // Very Light Blue
   
-  // Accent - Championship Gold
-  gold: '#FFD700',
+  // Accent - Vibrant Blue
+  gold: '#FFD700',           // Gold for highlights
   goldDark: '#FFC400',
   goldLight: '#FFEA00',
   
-  // Background - Stadium Night Theme
-  background: '#0A0E17',
-  backgroundLight: '#111827',
-  backgroundGradientStart: '#0A0E17',
-  backgroundGradientEnd: '#1A1F2E',
+  // Background - Deep Blue Theme
+  background: '#2A79A6',     // Deep Blue (main app background)
+  backgroundLight: '#42C0E5', // Light Blue
+  backgroundGradientStart: '#2A79A6',
+  backgroundGradientEnd: '#1A5A7A',
   
-  // Card - Glass Morphism
-  card: 'rgba(25, 32, 48, 0.8)',
-  cardSolid: '#192030',
-  cardHover: '#1E2A40',
-  cardHighlight: 'rgba(0, 200, 83, 0.1)',
+  // Card - White/Light Cards
+  card: '#FFFFFF',           // White cards
+  cardSolid: '#FFFFFF',
+  cardHover: '#F5F5F5',
+  cardHighlight: 'rgba(66, 192, 229, 0.1)',
   
   // Glass Effect
-  glass: 'rgba(255, 255, 255, 0.05)',
-  glassBorder: 'rgba(255, 255, 255, 0.1)',
+  glass: 'rgba(255, 255, 255, 0.08)',
+  glassBorder: 'rgba(255, 255, 255, 0.12)',
   
   // Text
-  text: '#FFFFFF',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
+  text: '#FFFFFF',           // White text on dark backgrounds
+  textSecondary: '#E7F3FB',  // Light text on dark backgrounds
+  textMuted: '#A3A3A3',      // Muted text
   textGlow: 'rgba(255, 255, 255, 0.8)',
   
   // Status Colors
-  success: '#22C55E',
-  successLight: 'rgba(34, 197, 94, 0.2)',
-  warning: '#F59E0B',
-  warningLight: 'rgba(245, 158, 11, 0.2)',
-  error: '#EF4444',
-  errorLight: 'rgba(239, 68, 68, 0.2)',
-  info: '#3B82F6',
-  infoLight: 'rgba(59, 130, 246, 0.2)',
+  success: '#4ade80',        // Green for success
+  successLight: 'rgba(74, 222, 128, 0.2)',
+  warning: '#FF6B00',        // Orange for warnings
+  warningLight: 'rgba(255, 107, 0, 0.2)',
+  error: '#FF453A',          // Red for errors
+  errorLight: 'rgba(255, 69, 58, 0.2)',
+  info: '#007AFF',           // Vibrant Blue
+  infoLight: 'rgba(0, 122, 255, 0.2)',
   
-  // Cricket Specific
-  cricketRed: '#DC2626',    // Cricket ball
-  cricketBrown: '#92400E',  // Bat wood
-  pitchGreen: '#16A34A',    // Pitch
-  stumps: '#FDE68A',        // Stumps yellow
+  // Cricket Specific (adapted to blue theme)
+  cricketRed: '#FF453A',     // Red accent
+  cricketBrown: '#92400E',   // Bat wood
+  pitchGreen: '#42C0E5',     // Now using blue
+  stumps: '#FFD700',         // Gold
   
   // Gradients (as arrays for LinearGradient)
-  gradientPrimary: ['#00C853', '#00A844'],
+  gradientPrimary: ['#42C0E5', '#2A79A6'],
   gradientGold: ['#FFD700', '#FF9500'],
-  gradientDark: ['#1A1F2E', '#0A0E17'],
-  gradientCard: ['rgba(30, 42, 64, 0.9)', 'rgba(25, 32, 48, 0.9)'],
+  gradientDark: ['#2A79A6', '#1A5A7A'],
+  gradientCard: ['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)'],
   
   // Border
   border: 'rgba(255, 255, 255, 0.1)',
   borderLight: 'rgba(255, 255, 255, 0.15)',
-  borderActive: '#00C853',
+  borderActive: '#42C0E5',
   
   // Overlay
   overlay: 'rgba(0, 0, 0, 0.7)',
