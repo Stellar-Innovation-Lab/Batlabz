@@ -9,17 +9,23 @@ import { Ionicons } from '@expo/vector-icons';
 // ==================== DESIGN TOKENS ====================
 
 export const DS_COLORS = {
-  primary: '#10B981',
-  primaryDark: '#16A34A',
-  primaryLight: '#34D399',
-  primaryGhost: '#ECFDF5',
+  primary: '#4A90E2',
+  primaryDark: '#357ABD',
+  primaryLight: '#5FA3E8',
+  primaryGhost: '#E0F2F7',
   
-  background: '#F8FAFC',
+  purple: '#7C4DFF',
+  purpleDark: '#A27FFF',
+  teal: '#4DB6AC',
+  tealDark: '#80CBC4',
+  
+  background: '#F8F9FA',
   surface: '#FFFFFF',
+  darkCard: '#303F5E',
   border: '#E5E7EB',
   borderLight: '#F3F4F6',
   
-  text: '#111827',
+  text: '#212529',
   textSecondary: '#6B7280',
   textMuted: '#9CA3AF',
   
