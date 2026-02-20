@@ -1,31 +1,29 @@
-// ==================== PREMIUM LIGHT CRICKET THEME ====================
-// Design System v2.0 - SaaS-Grade Professional
+// ==================== BATLABZ PREMIUM NAVY THEME ====================
+// Professional Banking-Grade Color System
 
 export const COLORS = {
-  // NexusPay-Inspired Colors
-  primary: '#4A90E2',           // Primary Blue
-  primaryDark: '#357ABD',       // Darker Blue
-  primaryLight: '#5FA3E8',      // Lighter Blue
-  primaryGhost: '#E0F2F7',      // Light Blue Background
+  // Deep Navy Theme (Premium & Trustworthy)
+  primary: '#1E3A8A',           // Deep Navy Blue
+  primaryDark: '#1E40AF',       // Rich Navy
+  primaryLight: '#3B82F6',      // Sky Blue
+  primaryGhost: '#DBEAFE',      // Light Blue Ghost
   
-  purple: '#7C4DFF',            // Purple Gradient Start
-  purpleDark: '#A27FFF',        // Purple Gradient End
-  teal: '#4DB6AC',              // Teal Gradient Start
-  tealDark: '#80CBC4',          // Teal Gradient End
+  accent: '#F59E0B',            // Amber Accent
+  accentLight: '#FCD34D',       // Light Amber
+  accentGhost: '#FEF3C7',       // Amber Ghost
   
-  background: '#F8F9FA',        // Soft Background
-  backgroundAlt: '#F1F5F9',     // Alternate Background
-  surface: '#FFFFFF',           // Card/Surface
-  darkCard: '#303F5E',          // Dark Card Background
+  background: '#F8FAFC',        // Soft Background
+  backgroundAlt: '#F1F5F9',     // Alternate Background  
+  surface: '#FFFFFF',           // Pure White Cards
+  surfaceElevated: '#FAFBFC',   // Elevated Surface
   
   border: '#E5E7EB',            // Primary Border
   borderLight: '#F3F4F6',       // Light Border
   
-  text: '#212529',              // Primary Text
-  textSecondary: '#6B7280',     // Secondary Text
-  textMuted: '#9CA3AF',         // Muted Text
-  textOnPrimary: '#FFFFFF',     // White on Blue
-  textOnDark: '#FFFFFF',        // White on Dark
+  text: '#0F172A',              // Primary Text (Dark)
+  textSecondary: '#64748B',     // Secondary Text
+  textMuted: '#94A3B8',         // Muted Text
+  textOnPrimary: '#FFFFFF',     // White on Navy
   
   success: '#22C55E',
   warning: '#F59E0B',
@@ -47,17 +45,15 @@ export const SPACING = {
 };
 
 export const TYPOGRAPHY = {
-  // Font Sizes
-  h1: 32,        // Page Titles
-  h2: 24,        // Section Titles
-  h3: 20,        // Card Titles
-  h4: 18,        // Subsections
-  body: 16,      // Body Text
-  bodySmall: 14, // Small Body
-  caption: 12,   // Captions/Labels
-  tiny: 10,      // Tiny Text
+  h1: 32,
+  h2: 24,
+  h3: 20,
+  h4: 18,
+  body: 16,
+  bodySmall: 14,
+  caption: 12,
+  tiny: 10,
   
-  // Font Weights
   regular: '400',
   medium: '500',
   semibold: '600',
@@ -65,7 +61,6 @@ export const TYPOGRAPHY = {
   extrabold: '800',
   black: '900',
   
-  // Line Heights
   tight: 1.2,
   normal: 1.5,
   relaxed: 1.75,
