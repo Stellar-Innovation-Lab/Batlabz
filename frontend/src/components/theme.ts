@@ -2,39 +2,36 @@
 // Design System v2.0 - SaaS-Grade Professional
 
 export const COLORS = {
-  // Primary Brand Colors
-  primary: '#10B981',           // Premium Green
-  primaryDark: '#16A34A',       // Deep Accent Green
-  primaryLight: '#34D399',      // Light Green
-  primaryGhost: '#ECFDF5',      // Ghost Green
+  // NexusPay-Inspired Colors
+  primary: '#4A90E2',           // Primary Blue
+  primaryDark: '#357ABD',       // Darker Blue
+  primaryLight: '#5FA3E8',      // Lighter Blue
+  primaryGhost: '#E0F2F7',      // Light Blue Background
   
-  // Background System
-  background: '#F8FAFC',        // Soft Background
+  purple: '#7C4DFF',            // Purple Gradient Start
+  purpleDark: '#A27FFF',        // Purple Gradient End
+  teal: '#4DB6AC',              // Teal Gradient Start
+  tealDark: '#80CBC4',          // Teal Gradient End
+  
+  background: '#F8F9FA',        // Soft Background
   backgroundAlt: '#F1F5F9',     // Alternate Background
-  surface: '#FFFFFF',           // Card/Surface Background
+  surface: '#FFFFFF',           // Card/Surface
+  darkCard: '#303F5E',          // Dark Card Background
   
-  // Border System
   border: '#E5E7EB',            // Primary Border
   borderLight: '#F3F4F6',       // Light Border
-  borderDark: '#D1D5DB',        // Dark Border
   
-  // Text System
-  text: '#111827',              // Primary Text
+  text: '#212529',              // Primary Text
   textSecondary: '#6B7280',     // Secondary Text
   textMuted: '#9CA3AF',         // Muted Text
-  textOnPrimary: '#FFFFFF',     // White on Green
+  textOnPrimary: '#FFFFFF',     // White on Blue
+  textOnDark: '#FFFFFF',        // White on Dark
   
-  // Status Colors
-  success: '#22C55E',           // Success Green
-  warning: '#F59E0B',           // Warning Orange
-  error: '#EF4444',             // Error Red
-  info: '#3B82F6',              // Info Blue
+  success: '#22C55E',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6',
   
-  // Cricket Accent
-  cricketOrange: '#FF9933',     // Indian Cricket Orange
-  cricketBlue: '#0033A0',       // Indian Cricket Blue
-  
-  // Shadows
   shadow: 'rgba(0, 0, 0, 0.08)',
   shadowDark: 'rgba(0, 0, 0, 0.12)',
 };
