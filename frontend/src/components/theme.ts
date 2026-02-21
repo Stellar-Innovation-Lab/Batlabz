@@ -32,6 +32,17 @@ export const COLORS = {
 };
 
 export const SPACING = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
+
+export const FONT_SIZES = {
+  xs: 10,
+  sm: 12,
+  md: 14,
+  lg: 16,
+  xl: 18,
+  xxl: 20,
+  hero: 32,
+};
+
 export const TYPOGRAPHY = {
   hero: { fontSize: 48, fontWeight: '900' },
   h1: { fontSize: 32, fontWeight: '900' },
@@ -39,4 +50,4 @@ export const TYPOGRAPHY = {
   body: { fontSize: 16, fontWeight: '500' },
 };
 export const BORDER_RADIUS = { sm: 12, md: 16, lg: 20, xl: 24, full: 9999 };
-export default { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS };
+export default { COLORS, SPACING, TYPOGRAPHY, FONT_SIZES, BORDER_RADIUS };
