@@ -50,4 +50,29 @@ export const TYPOGRAPHY = {
   body: { fontSize: 16, fontWeight: '500' },
 };
 export const BORDER_RADIUS = { sm: 12, md: 16, lg: 20, xl: 24, full: 9999 };
-export default { COLORS, SPACING, TYPOGRAPHY, FONT_SIZES, BORDER_RADIUS };
+
+export const SHADOWS = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  lg: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+};
+
+export default { COLORS, SPACING, TYPOGRAPHY, FONT_SIZES, BORDER_RADIUS, SHADOWS };
