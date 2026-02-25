@@ -86,7 +86,7 @@ export default function LoginScreen() {
                 </LinearGradient>
               </View>
               
-              <Text style={styles.subtitle}>Welcome Back! \ud83d\udc4b</Text>
+              <Text style={styles.subtitle}>Welcome Back! 👋</Text>
               <Text style={styles.description}>UAE's premier cricket platform</Text>
             </Animated.View>
 
