@@ -100,7 +100,7 @@ export default function LoginScreen() {
                   
                   <View style={styles.phoneInputContainer}>
                     <View style={styles.countryCode}>
-                      <Text style={styles.flag}>\ud83c\udde6\ud83c\uddea</Text>
+                      <Text style={styles.flag}>🇦🇪</Text>
                       <View style={styles.divider} />
                       <Text style={styles.codeText}>+971</Text>
                     </View>
