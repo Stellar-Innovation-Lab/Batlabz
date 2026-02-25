@@ -27,14 +27,14 @@ export default function WalletScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      <LinearGradient colors={['#10B981', '#16A34A']} style={styles.header}>
+      <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.header}>
         <Text style={styles.headerTitle}>Wallet</Text>
         <TouchableOpacity style={styles.settingsBtn}>
           <Ionicons name="settings-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </LinearGradient>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor="#10B981" />}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor="#1E3A8A" />}>
         
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Total Balance</Text>
@@ -43,14 +43,14 @@ export default function WalletScreen() {
 
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/wallet/emoney-topup')}>
-            <LinearGradient colors={['#10B981', '#16A34A']} style={styles.actionBtnGradient}>
+            <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.actionBtnGradient}>
               <Ionicons name="add" size={24} color="#fff" />
               <Text style={styles.actionBtnText}>Top Up</Text>
             </LinearGradient>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/wallet/payout')}>
             <View style={styles.actionBtnOutline}>
-              <Ionicons name="arrow-up" size={24} color="#10B981" />
+              <Ionicons name="arrow-up" size={24} color="#1E3A8A" />
               <Text style={styles.actionBtnTextOutline}>Withdraw</Text>
             </View>
           </TouchableOpacity>
@@ -66,14 +66,14 @@ export default function WalletScreen() {
           
           {transactions.length > 0 ? transactions.slice(0, 5).map((txn) => (
             <TouchableOpacity key={txn.id} style={styles.txnCard}>
-              <View style={[styles.txnIcon, { backgroundColor: txn.amount > 0 ? '#ECFDF5' : '#FEF2F2' }]}>
-                <Ionicons name={txn.amount > 0 ? 'arrow-down' : 'arrow-up'} size={20} color={txn.amount > 0 ? '#10B981' : '#EF4444'} />
+              <View style={[styles.txnIcon, { backgroundColor: txn.amount > 0 ? '#DBEAFE' : '#FEF2F2' }]}>
+                <Ionicons name={txn.amount > 0 ? 'arrow-down' : 'arrow-up'} size={20} color={txn.amount > 0 ? '#1E3A8A' : '#EF4444'} />
               </View>
               <View style={styles.txnInfo}>
                 <Text style={styles.txnDesc}>{txn.description}</Text>
                 <Text style={styles.txnDate}>{new Date(txn.created_at).toLocaleDateString()}</Text>
               </View>
-              <Text style={[styles.txnAmount, { color: txn.amount > 0 ? '#10B981' : '#EF4444' }]}>
+              <Text style={[styles.txnAmount, { color: txn.amount > 0 ? '#1E3A8A' : '#EF4444' }]}>
                 {txn.amount > 0 ? '+' : ''}AED {Math.abs(txn.amount).toFixed(2)}
               </Text>
             </TouchableOpacity>
@@ -107,13 +107,13 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
   actionBtnGradient: { paddingVertical: 18, alignItems: 'center', gap: 8 },
   actionBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  actionBtnOutline: { backgroundColor: '#fff', borderWidth: 2, borderColor: '#10B981', paddingVertical: 18, alignItems: 'center', gap: 8, borderRadius: 16 },
-  actionBtnTextOutline: { fontSize: 15, fontWeight: '800', color: '#10B981' },
+  actionBtnOutline: { backgroundColor: '#fff', borderWidth: 2, borderColor: '#1E3A8A', paddingVertical: 18, alignItems: 'center', gap: 8, borderRadius: 16 },
+  actionBtnTextOutline: { fontSize: 15, fontWeight: '800', color: '#1E3A8A' },
 
   section: { paddingHorizontal: 24 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
-  link: { fontSize: 14, color: '#10B981', fontWeight: '700' },
+  link: { fontSize: 14, color: '#1E3A8A', fontWeight: '700' },
 
   txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#F3F4F6', gap: 12 },
   txnIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },

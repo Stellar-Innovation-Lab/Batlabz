@@ -34,7 +34,7 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#10B981" />
+        <ActivityIndicator size="large" color="#1E3A8A" />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -51,7 +51,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      <LinearGradient colors={['#10B981', '#16A34A']} style={styles.header}>
+      <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.header}>
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>{greeting()}</Text>
@@ -64,10 +64,10 @@ export default function HomeScreen() {
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E3A8A" />}>
         
         <TouchableOpacity activeOpacity={0.95} onPress={() => router.push('/(tabs)/wallet')} style={styles.walletCardWrapper}>
-          <LinearGradient colors={['#10B981', '#16A34A']} style={styles.walletCard}>
+          <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.walletCard}>
             <View style={styles.walletContent}>
               <View>
                 <Text style={styles.walletLabel}>Wallet Balance</Text>
@@ -91,8 +91,8 @@ export default function HomeScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <View style={[styles.statIconBg, {backgroundColor: '#ECFDF5'}]}>
-              <Ionicons name="calendar" size={24} color="#10B981" />
+            <View style={[styles.statIconBg, {backgroundColor: '#DBEAFE'}]}>
+              <Ionicons name="calendar" size={24} color="#1E3A8A" />
             </View>
             <Text style={styles.statValue}>{dashboard?.total_matches || 0}</Text>
             <Text style={styles.statLabel}>Matches</Text>
@@ -117,7 +117,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.grid}>
             <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/match/create')}>
-              <LinearGradient colors={['#10B981', '#16A34A']} style={styles.actionGradient}>
+              <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.actionGradient}>
                 <Ionicons name="add-circle" size={32} color="#fff" />
                 <Text style={styles.actionText}>Create Match</Text>
               </LinearGradient>
@@ -172,7 +172,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.matchFooter}>
                   <Text style={styles.matchCost}>AED {match.per_player_cost?.toFixed(2) || '0.00'}</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#10B981" />
+                  <Ionicons name="chevron-forward" size={20} color="#1E3A8A" />
                 </View>
               </TouchableOpacity>
             ))
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '500', marginBottom: 4 },
   userName: { fontSize: 28, fontWeight: '900', color: '#fff' },
   notifButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-  badge: { position: 'absolute', top: 6, right: 6, backgroundColor: '#EF4444', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#10B981' },
+  badge: { position: 'absolute', top: 6, right: 6, backgroundColor: '#EF4444', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#1E3A8A' },
   badgeText: { fontSize: 10, fontWeight: '800', color: '#fff' },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 32 },
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 24, marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
-  link: { fontSize: 14, color: '#10B981', fontWeight: '700' },
+  link: { fontSize: 14, color: '#1E3A8A', fontWeight: '700' },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
   actionCard: { width: '48%', aspectRatio: 1.2, borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
@@ -234,15 +234,15 @@ const styles = StyleSheet.create({
   matchHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   matchTitle: { fontSize: 17, fontWeight: '800', color: '#111827', marginBottom: 4 },
   matchDate: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  matchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, gap: 6 },
-  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
-  matchStatus: { fontSize: 12, color: '#10B981', fontWeight: '700' },
+  matchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, gap: 6 },
+  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#1E3A8A' },
+  matchStatus: { fontSize: 12, color: '#1E3A8A', fontWeight: '700' },
   matchInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
   matchLocation: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   matchSeparator: { fontSize: 13, color: '#D1D5DB', marginHorizontal: 4 },
   matchPlayers: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   matchFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  matchCost: { fontSize: 20, fontWeight: '900', color: '#10B981' },
+  matchCost: { fontSize: 20, fontWeight: '900', color: '#1E3A8A' },
 
   emptyState: { backgroundColor: '#fff', borderRadius: 20, padding: 40, alignItems: 'center', borderWidth: 2, borderColor: '#F3F4F6', borderStyle: 'dashed' },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginTop: 16, marginBottom: 8 },
