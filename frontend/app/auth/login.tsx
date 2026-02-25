@@ -127,7 +127,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   background: { flex: 1, backgroundColor: '#F8FAFC' },
-  glow: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: '#1E3A8A', top: 120, left: width/2 - 150, shadowColor: '#1E3A8A', shadowOpacity: 0.15, shadowRadius: 60 },
+  glow: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: '#1E3A8A', top: 120, left: '50%', marginLeft: -150, shadowColor: '#1E3A8A', shadowOpacity: 0.15, shadowRadius: 60 },
   circle1: { position: 'absolute', width: 450, height: 450, borderRadius: 225, borderWidth: 1.5, borderColor: 'rgba(30,58,138,0.08)', top: -100, left: -80 },
   circle2: { position: 'absolute', width: 350, height: 350, borderRadius: 175, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.1)', bottom: -80, right: -60 },
   keyboardView: { flex: 1 },
