@@ -18,7 +18,17 @@ load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+try:
+    from motor.motor_asyncio import AsyncIOMotorClient as _RealClient
+    import asyncio
+    _test_client = _RealClient(mongo_url, serverSelectionTimeoutMS=2000)
+    asyncio.get_event_loop().run_until_complete(_test_client.server_info())
+    client = _test_client
+    logging.info("Connected to real MongoDB")
+except Exception:
+    logging.warning("MongoDB not reachable, falling back to mongomock-motor")
+    from mongomock_motor import AsyncMongoMockClient
+    client = AsyncMongoMockClient()
 db = client[os.environ['DB_NAME']]
 
 # JWT Secret
