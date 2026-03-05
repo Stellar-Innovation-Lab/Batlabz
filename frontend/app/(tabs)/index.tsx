@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Animated, Easing } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -47,10 +47,16 @@ export default function HomeScreen() {
     return 'Good Evening';
   };
 
+  const formatMatchDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' · ' + d.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      
+      <StatusBar style="light" />
+
       <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.header}>
         <View style={styles.headerContent}>
           <View>
@@ -59,90 +65,79 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity style={styles.notifButton} onPress={() => router.push('/notifications')}>
             <Ionicons name="notifications" size={24} color="#fff" />
-            {unreadCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount}</Text></View>}
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
+
+        {/* Wallet summary strip inside header */}
+        <TouchableOpacity style={styles.walletStrip} onPress={() => router.push('/(tabs)/wallet')} activeOpacity={0.85}>
+          <View style={styles.walletStripLeft}>
+            <Ionicons name="wallet-outline" size={18} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.walletStripLabel}>Wallet</Text>
+            <Text style={styles.walletStripAmount}>AED {(user?.wallet_balance || 0).toFixed(2)}</Text>
+          </View>
+          <View style={styles.walletStripActions}>
+            <TouchableOpacity style={styles.walletStripBtn} onPress={() => router.push('/wallet/emoney-topup')}>
+              <Ionicons name="add" size={14} color="#1E3A8A" />
+              <Text style={styles.walletStripBtnText}>Top Up</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.walletStripBtn} onPress={() => router.push('/wallet/enhanced-transactions')}>
+              <Ionicons name="receipt-outline" size={14} color="#1E3A8A" />
+              <Text style={styles.walletStripBtnText}>History</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </LinearGradient>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E3A8A" />}>
-        
-        <TouchableOpacity activeOpacity={0.95} onPress={() => router.push('/(tabs)/wallet')} style={styles.walletCardWrapper}>
-          <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.walletCard}>
-            <View style={styles.walletContent}>
-              <View>
-                <Text style={styles.walletLabel}>Wallet Balance</Text>
-                <Text style={styles.walletAmount}>AED {(user?.wallet_balance || 0).toFixed(2)}</Text>
-                <View style={styles.walletActions}>
-                  <TouchableOpacity style={styles.walletBtn} onPress={() => router.push('/wallet/emoney-topup')}>
-                    <Ionicons name="add-circle" size={16} color="#fff" />
-                    <Text style={styles.walletBtnText}>Top Up</Text>
-                  </TouchableOpacity>
-                  <View style={styles.walletDivider} />
-                  <TouchableOpacity style={styles.walletBtn} onPress={() => router.push('/wallet/enhanced-transactions')}>
-                    <Ionicons name="receipt" size={16} color="#fff" />
-                    <Text style={styles.walletBtnText}>History</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <Ionicons name="wallet" size={56} color="rgba(255,255,255,0.2)" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E3A8A" />}
+      >
 
+        {/* Stats row */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconBg, {backgroundColor: '#DBEAFE'}]}>
-              <Ionicons name="calendar" size={24} color="#1E3A8A" />
+          {[
+            { icon: 'calendar', color: '#1E3A8A', bg: '#DBEAFE', value: dashboard?.total_matches || 0, label: 'Matches' },
+            { icon: 'people', color: '#F59E0B', bg: '#FEF3C7', value: dashboard?.total_teams || 0, label: 'Teams' },
+            { icon: 'trophy', color: '#10B981', bg: '#D1FAE5', value: dashboard?.wins || 0, label: 'Wins' },
+          ].map((s) => (
+            <View key={s.label} style={styles.statCard}>
+              <View style={[styles.statIconBg, { backgroundColor: s.bg }]}>
+                <Ionicons name={s.icon as any} size={22} color={s.color} />
+              </View>
+              <Text style={styles.statValue}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
             </View>
-            <Text style={styles.statValue}>{dashboard?.total_matches || 0}</Text>
-            <Text style={styles.statLabel}>Matches</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconBg, {backgroundColor: '#FEF3C7'}]}>
-              <Ionicons name="people" size={24} color="#F59E0B" />
-            </View>
-            <Text style={styles.statValue}>{dashboard?.total_teams || 0}</Text>
-            <Text style={styles.statLabel}>Teams</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconBg, {backgroundColor: '#FEF2F2'}]}>
-              <Ionicons name="trophy" size={24} color="#EF4444" />
-            </View>
-            <Text style={styles.statValue}>{dashboard?.wins || 0}</Text>
-            <Text style={styles.statLabel}>Wins</Text>
-          </View>
+          ))}
         </View>
 
+        {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.grid}>
-            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/match/create')}>
-              <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.actionGradient}>
-                <Ionicons name="add-circle" size={32} color="#fff" />
-                <Text style={styles.actionText}>Create Match</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/players')}>
-              <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.actionGradient}>
-                <Ionicons name="people" size={32} color="#fff" />
-                <Text style={styles.actionText}>Players</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/grounds')}>
-              <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.actionGradient}>
-                <Ionicons name="location" size={32} color="#fff" />
-                <Text style={styles.actionText}>Book Ground</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/ai')}>
-              <LinearGradient colors={['#8B5CF6', '#7C3AED']} style={styles.actionGradient}>
-                <Ionicons name="sparkles" size={32} color="#fff" />
-                <Text style={styles.actionText}>AI Hub</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            {[
+              { label: 'Create Match', icon: 'add-circle', colors: ['#1E3A8A', '#1E40AF'] as const, route: '/match/create' },
+              { label: 'Join Team', icon: 'people-circle', colors: ['#0EA5E9', '#0284C7'] as const, route: '/team/join' },
+              { label: 'Book Ground', icon: 'location', colors: ['#F59E0B', '#D97706'] as const, route: '/(tabs)/grounds' },
+              { label: 'AI Hub', icon: 'sparkles', colors: ['#8B5CF6', '#7C3AED'] as const, route: '/ai' },
+            ].map((action) => (
+              <TouchableOpacity key={action.label} style={styles.actionCard} onPress={() => router.push(action.route as any)} activeOpacity={0.88}>
+                <LinearGradient colors={action.colors} style={styles.actionGradient}>
+                  <Ionicons name={action.icon as any} size={30} color="#fff" />
+                  <Text style={styles.actionText}>{action.label}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
+        {/* Upcoming Matches */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Matches</Text>
@@ -150,37 +145,50 @@ export default function HomeScreen() {
               <Text style={styles.link}>View All</Text>
             </TouchableOpacity>
           </View>
+
           {dashboard?.upcoming_matches && dashboard.upcoming_matches.length > 0 ? (
             dashboard.upcoming_matches.slice(0, 3).map((match: any) => (
-              <TouchableOpacity key={match.id} style={styles.matchCard} onPress={() => router.push(`/match/${match.id}`)}>
-                <View style={styles.matchHeader}>
-                  <View>
+              <TouchableOpacity key={match.id} style={styles.matchCard} onPress={() => router.push(`/match/${match.id}` as any)} activeOpacity={0.92}>
+                <View style={styles.matchRow}>
+                  <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.matchIconBg}>
+                    <Ionicons name="baseball" size={20} color="#fff" />
+                  </LinearGradient>
+                  <View style={styles.matchMid}>
                     <Text style={styles.matchTitle}>{match.title}</Text>
-                    <Text style={styles.matchDate}>{new Date(match.date).toLocaleDateString()}</Text>
+                    <Text style={styles.matchDate}>{formatMatchDate(match.date)}</Text>
                   </View>
                   <View style={styles.matchBadge}>
                     <View style={styles.badgeDot} />
-                    <Text style={styles.matchStatus}>Upcoming</Text>
+                    <Text style={styles.matchStatus}>Live</Text>
                   </View>
                 </View>
-                <View style={styles.matchInfo}>
-                  <Ionicons name="location" size={14} color="#6B7280" />
-                  <Text style={styles.matchLocation}>{match.location}</Text>
-                  <Text style={styles.matchSeparator}>•</Text>
-                  <Ionicons name="people" size={14} color="#6B7280" />
-                  <Text style={styles.matchPlayers}>{match.confirmed_player_ids?.length || 0} players</Text>
+                <View style={styles.matchMeta}>
+                  <View style={styles.metaChip}>
+                    <Ionicons name="location-outline" size={13} color="#64748B" />
+                    <Text style={styles.metaText}>{match.location || 'TBD'}</Text>
+                  </View>
+                  <View style={styles.metaChip}>
+                    <Ionicons name="people-outline" size={13} color="#64748B" />
+                    <Text style={styles.metaText}>{match.confirmed_player_ids?.length || 0} players</Text>
+                  </View>
                 </View>
                 <View style={styles.matchFooter}>
-                  <Text style={styles.matchCost}>AED {match.per_player_cost?.toFixed(2) || '0.00'}</Text>
+                  <Text style={styles.matchCost}>AED {match.per_player_cost?.toFixed(2) || '0.00'} <Text style={styles.matchCostSub}>/ player</Text></Text>
                   <Ionicons name="chevron-forward" size={20} color="#1E3A8A" />
                 </View>
               </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={48} color="#D1D5DB" />
+              <Ionicons name="calendar-outline" size={44} color="#CBD5E1" />
               <Text style={styles.emptyTitle}>No Upcoming Matches</Text>
               <Text style={styles.emptyText}>Create a match to get started</Text>
+              <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/match/create' as any)}>
+                <LinearGradient colors={['#1E3A8A', '#1E40AF']} style={styles.emptyBtnGrad}>
+                  <Ionicons name="add" size={18} color="#fff" />
+                  <Text style={styles.emptyBtnText}>Create Match</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -194,57 +202,73 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   loadingContainer: { flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 16, fontSize: 16, color: '#6B7280', fontWeight: '600' },
-  header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
-  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  greeting: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '500', marginBottom: 4 },
-  userName: { fontSize: 28, fontWeight: '900', color: '#fff' },
-  notifButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-  badge: { position: 'absolute', top: 6, right: 6, backgroundColor: '#EF4444', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#1E3A8A' },
-  badgeText: { fontSize: 10, fontWeight: '800', color: '#fff' },
+
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    shadowColor: '#1E3A8A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  greeting: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginBottom: 2 },
+  userName: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
+  notifButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center' },
+  badge: { position: 'absolute', top: 4, right: 4, backgroundColor: '#EF4444', borderRadius: 9, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#1E3A8A' },
+  badgeText: { fontSize: 9, fontWeight: '900', color: '#fff' },
+
+  walletStrip: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  walletStripLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  walletStripLabel: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '600' },
+  walletStripAmount: { fontSize: 18, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
+  walletStripActions: { flexDirection: 'row', gap: 8 },
+  walletStripBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F59E0B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  walletStripBtnText: { fontSize: 12, fontWeight: '800', color: '#1E3A8A' },
+
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: 32 },
-  
-  walletCardWrapper: { marginTop: -40, marginHorizontal: 24, marginBottom: 24 },
-  walletCard: { borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 12 },
-  walletContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  walletLabel: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: 8 },
-  walletAmount: { fontSize: 40, fontWeight: '900', color: '#fff', marginBottom: 16, letterSpacing: -1 },
-  walletActions: { flexDirection: 'row', gap: 12 },
-  walletBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, gap: 6 },
-  walletBtnText: { fontSize: 13, color: '#fff', fontWeight: '700' },
-  walletDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.3)' },
+  scrollContent: { paddingTop: 20, paddingBottom: 40 },
 
   statsRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginBottom: 24 },
-  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 20, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F3F4F6' },
-  statIconBg: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  statValue: { fontSize: 28, fontWeight: '900', color: '#111827', marginBottom: 4 },
-  statLabel: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
+  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 20, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' },
+  statIconBg: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  statValue: { fontSize: 26, fontWeight: '900', color: '#0F172A', marginBottom: 2 },
+  statLabel: { fontSize: 11, color: '#94A3B8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   section: { paddingHorizontal: 24, marginBottom: 24 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sectionTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  sectionTitle: { fontSize: 19, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3, marginBottom: 14 },
   link: { fontSize: 14, color: '#1E3A8A', fontWeight: '700' },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
-  actionCard: { width: '48%', aspectRatio: 1.2, borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
-  actionGradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  actionText: { fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  actionCard: { width: '47.5%', aspectRatio: 1.15, borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+  actionGradient: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  actionText: { fontSize: 14, fontWeight: '800', color: '#fff' },
 
-  matchCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F3F4F6' },
-  matchHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  matchTitle: { fontSize: 17, fontWeight: '800', color: '#111827', marginBottom: 4 },
-  matchDate: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  matchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, gap: 6 },
-  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#1E3A8A' },
-  matchStatus: { fontSize: 12, color: '#1E3A8A', fontWeight: '700' },
-  matchInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  matchLocation: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  matchSeparator: { fontSize: 13, color: '#D1D5DB', marginHorizontal: 4 },
-  matchPlayers: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  matchFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  matchCost: { fontSize: 20, fontWeight: '900', color: '#1E3A8A' },
+  matchCard: { backgroundColor: '#fff', borderRadius: 20, padding: 18, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' },
+  matchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
+  matchIconBg: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  matchMid: { flex: 1 },
+  matchTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', marginBottom: 3 },
+  matchDate: { fontSize: 12, color: '#64748B', fontWeight: '500' },
+  matchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, gap: 5 },
+  badgeDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#22C55E' },
+  matchStatus: { fontSize: 11, color: '#16A34A', fontWeight: '800' },
+  matchMeta: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 12, color: '#64748B', fontWeight: '500' },
+  matchFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  matchCost: { fontSize: 18, fontWeight: '900', color: '#1E3A8A' },
+  matchCostSub: { fontSize: 12, fontWeight: '500', color: '#94A3B8' },
 
-  emptyState: { backgroundColor: '#fff', borderRadius: 20, padding: 40, alignItems: 'center', borderWidth: 2, borderColor: '#F3F4F6', borderStyle: 'dashed' },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginTop: 16, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#6B7280', textAlign: 'center' },
+  emptyState: { backgroundColor: '#fff', borderRadius: 20, padding: 36, alignItems: 'center', borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginTop: 14, marginBottom: 6 },
+  emptyText: { fontSize: 13, color: '#94A3B8', textAlign: 'center', marginBottom: 20 },
+  emptyBtn: { borderRadius: 14, overflow: 'hidden' },
+  emptyBtnGrad: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 24, gap: 6 },
+  emptyBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
